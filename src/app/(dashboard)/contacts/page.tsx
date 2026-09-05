@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/data-table/empty-state";
 import { ListPagination } from "@/components/data-table/list-pagination";
 import { ListToolbar } from "@/components/data-table/list-toolbar";
 import { SortableHeader } from "@/components/data-table/sortable-header";
+import { ViewToggle, parseViewMode } from "@/components/data-table/view-toggle";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { type RawSearchParams, buildPageMeta, parseListParams } from "@/lib/list-params";
 import { archiveContactAction } from "@/modules/contacts/actions";
+import { ContactKanban } from "@/modules/contacts/components/contact-kanban";
 import { listContacts } from "@/modules/contacts/contact-service";
 import {
   CONTACT_SORT_FIELDS,
@@ -51,6 +53,7 @@ export default async function ContactsPage({
     },
   });
 
+  const view = parseViewMode(resolved);
   const { rows, total } = await listContacts(params);
   const meta = buildPageMeta(params, total);
 
@@ -67,17 +70,22 @@ export default async function ContactsPage({
         action={canCreate ? { label: "New contact", href: "/contacts/new" } : undefined}
       />
 
-      <ListToolbar
-        searchPlaceholder="Search name, email, mobile or city..."
-        filters={[
-          {
-            name: "type",
-            label: "Type",
-            options: CONTACT_TYPE_OPTIONS.map((option) => ({ ...option })),
-          },
-          { name: "status", label: "Status", options: ARCHIVE_FILTER_OPTIONS },
-        ]}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <ListToolbar
+            searchPlaceholder="Search name, email, mobile or city..."
+            filters={[
+              {
+                name: "type",
+                label: "Type",
+                options: CONTACT_TYPE_OPTIONS.map((option) => ({ ...option })),
+              },
+              { name: "status", label: "Status", options: ARCHIVE_FILTER_OPTIONS },
+            ]}
+          />
+        </div>
+        <ViewToggle pathname={PATHNAME} searchParams={resolved} current={view} />
+      </div>
 
       <div className="rounded-xl border">
         {rows.length === 0 ? (
@@ -94,6 +102,17 @@ export default async function ContactsPage({
               action={canCreate ? { label: "New contact", href: "/contacts/new" } : undefined}
             />
           )
+        ) : view === "kanban" ? (
+          <>
+            <ContactKanban rows={rows} />
+
+            <ListPagination
+              meta={meta}
+              pathname={PATHNAME}
+              searchParams={resolved}
+              itemLabel="contacts"
+            />
+          </>
         ) : (
           <>
             <Table>

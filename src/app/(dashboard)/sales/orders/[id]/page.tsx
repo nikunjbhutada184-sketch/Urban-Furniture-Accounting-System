@@ -1,4 +1,4 @@
-import { JournalType, PurchaseOrderStatus } from "@prisma/client";
+import { JournalType, SalesOrderStatus } from "@prisma/client";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,76 +13,78 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { listJournalOptions } from "@/modules/journals/journal-service";
 import {
-  cancelPurchaseOrderAction,
-  confirmPurchaseOrderAction,
-  convertToBillAction,
-} from "@/modules/purchases/actions";
+  cancelSalesOrderAction,
+  confirmSalesOrderAction,
+  convertToInvoiceAction,
+} from "@/modules/sales/actions";
+import { getSalesOrder } from "@/modules/sales/sales-order-service";
 import { ConvertDocumentDialog } from "@/modules/shared/components/convert-document-dialog";
 import { DocumentActionButton } from "@/modules/shared/components/document-action-button";
-import { OrderStatusBadge, BillStatusBadge } from "@/modules/purchases/components/status-badge";
-import { getPurchaseOrder } from "@/modules/purchases/purchase-order-service";
-import { listJournalOptions } from "@/modules/journals/journal-service";
+import {
+  InvoiceStatusBadge,
+  SalesOrderStatusBadge,
+} from "@/modules/shared/components/status-badge";
 import { can } from "@/server/auth/permissions";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 import { isAppError } from "@/server/errors";
 import { toAmountString } from "@/server/money";
 
-export const metadata: Metadata = { title: "Purchase order" };
+export const metadata: Metadata = { title: "Sales order" };
 
-export default async function PurchaseOrderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SalesOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requirePermissionOrRedirect("transaction:view");
   const { id } = await params;
 
-  const order = await getPurchaseOrder(id).catch((error) => {
+  const order = await getSalesOrder(id).catch((error) => {
     if (isAppError(error) && error.code === "NOT_FOUND") notFound();
     throw error;
   });
 
-  const purchaseJournals = await listJournalOptions([JournalType.PURCHASE]);
+  const salesJournals = await listJournalOptions([JournalType.SALES]);
 
   const canUpdate = can(actor, "transaction:update");
   const canCancel = can(actor, "transaction:cancel");
   const canCreate = can(actor, "transaction:create");
 
-  const isDraft = order.status === PurchaseOrderStatus.DRAFT;
-  const isConfirmed = order.status === PurchaseOrderStatus.CONFIRMED;
+  const isDraft = order.status === SalesOrderStatus.DRAFT;
+  const isConfirmed = order.status === SalesOrderStatus.CONFIRMED;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      <PageHeader title={order.number} description={`Vendor: ${order.vendor.name}`}>
-        <OrderStatusBadge status={order.status} />
+      <PageHeader title={order.number} description={`Customer: ${order.customer.name}`}>
+        <SalesOrderStatusBadge status={order.status} />
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-2">
         {isDraft && canUpdate ? (
           <>
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/purchases/orders/${order.id}/edit`}>Edit</Link>
+              <Link href={`/sales/orders/${order.id}/edit`}>Edit</Link>
             </Button>
             <DocumentActionButton
-              action={confirmPurchaseOrderAction.bind(null, order.id)}
+              action={confirmSalesOrderAction.bind(null, order.id)}
               label="Confirm order"
-              title="Confirm this purchase order?"
-              description="Confirming locks the order for editing and allows it to be converted into a vendor bill when the goods arrive. No accounting entry is created."
+              title="Confirm this sales order?"
+              description="Confirming locks the order for editing and allows the customer invoice to be generated. No accounting entry is created yet."
             />
           </>
         ) : null}
 
         {isConfirmed && canCreate ? (
           <ConvertDocumentDialog
-            action={convertToBillAction}
+            action={convertToInvoiceAction}
             orderId={order.id}
             orderNumber={order.number}
-            orderFieldName="purchaseOrderId"
-            successHref="/purchases/bills"
-            triggerLabel="Create vendor bill"
-            title="Create vendor bill"
-            description="Records the goods as received and creates the bill you owe."
-            referenceLabel="Vendor invoice number"
-            referencePlaceholder="Their invoice reference"
-            referenceFieldName="vendorReference"
-            journals={purchaseJournals.map((journal) => ({
+            orderFieldName="salesOrderId"
+            successHref="/sales/invoices"
+            triggerLabel="Generate invoice"
+            title="Generate customer invoice"
+            description="Creates the invoice for this order."
+            referenceLabel="Reference"
+            referencePlaceholder="Customer PO number"
+            journals={salesJournals.map((journal) => ({
               id: journal.id,
               label: `${journal.code} · ${journal.name}`,
             }))}
@@ -91,46 +93,30 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
 
         {(isDraft || isConfirmed) && canCancel ? (
           <DocumentActionButton
-            action={cancelPurchaseOrderAction.bind(null, order.id)}
+            action={cancelSalesOrderAction.bind(null, order.id)}
             label="Cancel order"
-            title="Cancel this purchase order?"
-            description="The order will be marked cancelled. This cannot be undone, and an order that has already been billed cannot be cancelled."
+            title="Cancel this sales order?"
+            description="The order will be marked cancelled. An order that has already been invoiced cannot be cancelled."
             variant="outline"
           />
         ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-xs font-medium uppercase">
-              Order date
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="tabular text-sm">
-            {order.orderDate.toISOString().slice(0, 10)}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-xs font-medium uppercase">
-              Expected
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="tabular text-sm">
-            {order.expectedDate?.toISOString().slice(0, 10) ?? "—"}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-muted-foreground text-xs font-medium uppercase">
-              Reference
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm">{order.reference ?? "—"}</CardContent>
-        </Card>
+        {[
+          { label: "Order date", value: order.orderDate.toISOString().slice(0, 10) },
+          { label: "Reference", value: order.reference ?? "—" },
+          { label: "Total", value: toAmountString(order.amountTotal) },
+        ].map((item) => (
+          <Card key={item.label}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-muted-foreground text-xs font-medium uppercase">
+                {item.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="tabular text-sm font-medium">{item.value}</CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card>
@@ -193,18 +179,18 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
         </CardContent>
       </Card>
 
-      {order.bills.length > 0 ? (
+      {order.invoices.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Vendor bills</CardTitle>
+            <CardTitle className="text-base">Customer invoices</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {order.bills.map((bill) => (
-              <div key={bill.id} className="flex items-center justify-between">
-                <Link href={`/purchases/bills/${bill.id}`} className="text-sm hover:underline">
-                  {bill.number}
+            {order.invoices.map((invoice) => (
+              <div key={invoice.id} className="flex items-center justify-between">
+                <Link href={`/sales/invoices/${invoice.id}`} className="text-sm hover:underline">
+                  {invoice.number}
                 </Link>
-                <BillStatusBadge status={bill.status} />
+                <InvoiceStatusBadge status={invoice.status} />
               </div>
             ))}
           </CardContent>

@@ -14,26 +14,26 @@ import {
 } from "@/components/ui/table";
 import { listJournalOptions } from "@/modules/journals/journal-service";
 import {
-  cancelVendorBillAction,
-  postVendorBillAction,
-  registerBillPaymentAction,
-} from "@/modules/purchases/actions";
+  cancelCustomerInvoiceAction,
+  postCustomerInvoiceAction,
+  receiveInvoicePaymentAction,
+} from "@/modules/sales/actions";
+import { getCustomerInvoice } from "@/modules/sales/customer-invoice-service";
 import { DocumentActionButton } from "@/modules/shared/components/document-action-button";
 import { PaymentDialog } from "@/modules/shared/components/payment-dialog";
-import { BillStatusBadge } from "@/modules/purchases/components/status-badge";
-import { getVendorBill } from "@/modules/purchases/vendor-bill-service";
+import { InvoiceStatusBadge } from "@/modules/shared/components/status-badge";
 import { can } from "@/server/auth/permissions";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 import { isAppError } from "@/server/errors";
 import { toAmountString } from "@/server/money";
 
-export const metadata: Metadata = { title: "Vendor bill" };
+export const metadata: Metadata = { title: "Customer invoice" };
 
-export default async function VendorBillPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CustomerInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const actor = await requirePermissionOrRedirect("transaction:view");
   const { id } = await params;
 
-  const bill = await getVendorBill(id).catch((error) => {
+  const invoice = await getCustomerInvoice(id).catch((error) => {
     if (isAppError(error) && error.code === "NOT_FOUND") notFound();
     throw error;
   });
@@ -44,35 +44,35 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
   const canCancel = can(actor, "transaction:cancel");
   const canPay = can(actor, "payment:post");
 
-  const isDraft = bill.status === InvoiceStatus.DRAFT;
-  const isPayable =
-    bill.status === InvoiceStatus.POSTED || bill.status === InvoiceStatus.PARTIALLY_PAID;
+  const isDraft = invoice.status === InvoiceStatus.DRAFT;
+  const isCollectable =
+    invoice.status === InvoiceStatus.POSTED || invoice.status === InvoiceStatus.PARTIALLY_PAID;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      <PageHeader title={bill.number} description={`Vendor: ${bill.vendor.name}`}>
-        <BillStatusBadge status={bill.status} />
+      <PageHeader title={invoice.number} description={`Customer: ${invoice.customer.name}`}>
+        <InvoiceStatusBadge status={invoice.status} />
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-2">
         {isDraft && canPost ? (
           <DocumentActionButton
-            action={postVendorBillAction.bind(null, bill.id)}
+            action={postCustomerInvoiceAction.bind(null, invoice.id)}
             label="Post to ledger"
-            title="Post this bill?"
-            description="Posting creates the journal entry (Dr expense and input tax, Cr creditors) and makes the bill payable. Posted entries are immutable — corrections are made by reversal."
-            confirmLabel="Post bill"
+            title="Post this invoice?"
+            description="Posting creates the journal entry (Dr debtors, Cr sales income and tax payable), ships stock for tracked goods, and makes the invoice collectable. Posted entries are immutable — corrections are made by reversal."
+            confirmLabel="Post invoice"
           />
         ) : null}
 
-        {isPayable && canPay ? (
+        {isCollectable && canPay ? (
           <PaymentDialog
-            action={registerBillPaymentAction.bind(null, bill.id)}
-            documentNumber={bill.number}
-            triggerLabel="Register payment"
-            title="Register payment"
-            currencyNote="Records money paid out"
-            amountResidual={toAmountString(bill.amountResidual)}
+            action={receiveInvoicePaymentAction.bind(null, invoice.id)}
+            documentNumber={invoice.number}
+            amountResidual={toAmountString(invoice.amountResidual)}
+            triggerLabel="Receive payment"
+            title="Receive payment"
+            currencyNote="Records money received"
             journals={paymentJournals.map((journal) => ({
               id: journal.id,
               label: `${journal.code} · ${journal.name}`,
@@ -83,10 +83,10 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
 
         {isDraft && canCancel ? (
           <DocumentActionButton
-            action={cancelVendorBillAction.bind(null, bill.id)}
-            label="Cancel bill"
-            title="Cancel this draft bill?"
-            description="The bill will be cancelled and its purchase order reopened for billing. Only draft bills can be cancelled."
+            action={cancelCustomerInvoiceAction.bind(null, invoice.id)}
+            label="Cancel invoice"
+            title="Cancel this draft invoice?"
+            description="The invoice will be cancelled and its sales order reopened for invoicing. Only draft invoices can be cancelled."
             variant="outline"
           />
         ) : null}
@@ -94,10 +94,10 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
 
       <div className="grid gap-4 sm:grid-cols-4">
         {[
-          { label: "Invoice date", value: bill.invoiceDate.toISOString().slice(0, 10) },
-          { label: "Due date", value: bill.dueDate?.toISOString().slice(0, 10) ?? "—" },
-          { label: "Total", value: toAmountString(bill.amountTotal) },
-          { label: "Outstanding", value: toAmountString(bill.amountResidual) },
+          { label: "Invoice date", value: invoice.invoiceDate.toISOString().slice(0, 10) },
+          { label: "Due date", value: invoice.dueDate?.toISOString().slice(0, 10) ?? "—" },
+          { label: "Total", value: toAmountString(invoice.amountTotal) },
+          { label: "Outstanding", value: toAmountString(invoice.amountResidual) },
         ].map((item) => (
           <Card key={item.label}>
             <CardHeader className="pb-2">
@@ -113,14 +113,14 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Lines</CardTitle>
-          {bill.purchaseOrder ? (
+          {invoice.salesOrder ? (
             <CardDescription>
-              Converted from{" "}
+              Generated from{" "}
               <Link
-                href={`/purchases/orders/${bill.purchaseOrder.id}`}
+                href={`/sales/orders/${invoice.salesOrder.id}`}
                 className="underline underline-offset-2"
               >
-                {bill.purchaseOrder.number}
+                {invoice.salesOrder.number}
               </Link>
             </CardDescription>
           ) : null}
@@ -130,7 +130,7 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
             <TableHeader>
               <TableRow>
                 <TableHead>Description</TableHead>
-                <TableHead>Expense account</TableHead>
+                <TableHead>Income account</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead className="text-right">Unit price</TableHead>
                 <TableHead className="text-right">Tax</TableHead>
@@ -138,7 +138,7 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bill.lines.map((line) => (
+              {invoice.lines.map((line) => (
                 <TableRow key={line.id}>
                   <TableCell className="font-medium">{line.description}</TableCell>
                   <TableCell className="text-muted-foreground text-xs">
@@ -161,36 +161,36 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
             <dl className="w-56 space-y-1 text-sm">
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Untaxed</dt>
-                <dd className="tabular">{toAmountString(bill.amountUntaxed)}</dd>
+                <dd className="tabular">{toAmountString(invoice.amountUntaxed)}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Tax</dt>
-                <dd className="tabular">{toAmountString(bill.amountTax)}</dd>
+                <dd className="tabular">{toAmountString(invoice.amountTax)}</dd>
               </div>
               <div className="flex justify-between border-t pt-1 font-semibold">
                 <dt>Total</dt>
-                <dd className="tabular">{toAmountString(bill.amountTotal)}</dd>
+                <dd className="tabular">{toAmountString(invoice.amountTotal)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-muted-foreground">Paid</dt>
-                <dd className="tabular">{toAmountString(bill.amountPaid)}</dd>
+                <dt className="text-muted-foreground">Received</dt>
+                <dd className="tabular">{toAmountString(invoice.amountPaid)}</dd>
               </div>
               <div className="flex justify-between font-semibold">
                 <dt>Outstanding</dt>
-                <dd className="tabular">{toAmountString(bill.amountResidual)}</dd>
+                <dd className="tabular">{toAmountString(invoice.amountResidual)}</dd>
               </div>
             </dl>
           </div>
         </CardContent>
       </Card>
 
-      {bill.journalEntry ? (
+      {invoice.journalEntry ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Journal entry {bill.journalEntry.number}</CardTitle>
+            <CardTitle className="text-base">Journal entry {invoice.journalEntry.number}</CardTitle>
             <CardDescription>
-              Posted {bill.journalEntry.date.toISOString().slice(0, 10)} in {bill.journal.name}.
-              Posted entries cannot be edited or deleted.
+              Posted {invoice.journalEntry.date.toISOString().slice(0, 10)} in{" "}
+              {invoice.journal.name}. Posted entries cannot be edited or deleted.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -204,7 +204,7 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bill.journalEntry.items.map((item) => (
+                {invoice.journalEntry.items.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="text-sm">
                       {item.account.code} · {item.account.name}
@@ -226,10 +226,10 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
         </Card>
       ) : null}
 
-      {bill.allocations.length > 0 ? (
+      {invoice.allocations.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Payments</CardTitle>
+            <CardTitle className="text-base">Payments received</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -242,7 +242,7 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bill.allocations.map((allocation) => (
+                {invoice.allocations.map((allocation) => (
                   <TableRow key={allocation.id}>
                     <TableCell className="font-medium">{allocation.payment.number}</TableCell>
                     <TableCell className="tabular text-muted-foreground">

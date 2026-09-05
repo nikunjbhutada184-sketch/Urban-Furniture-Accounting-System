@@ -19,19 +19,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { type ActionState, IDLE_STATE } from "@/modules/shared/action-state";
 
 /**
- * Purchase order editor.
+ * Order editor, shared by purchase orders and sales orders.
+ *
+ * The two documents are structurally identical -- a partner, a date, and lines
+ * of product/quantity/price/tax -- so they share one component. `partnerLabel`
+ * and `partnerFieldName` adapt it to "Vendor" or "Customer".
  *
  * The totals shown here are a live preview for the user's benefit. They are
  * NEVER trusted: the server recomputes every amount from quantity, price and
- * tax rate before saving. That is why the form submits raw line values, not
- * computed totals.
+ * tax rate as exact decimals before saving. That is why the form submits raw
+ * line values, not computed totals.
  */
 
 export interface ProductOption {
   id: string;
   name: string;
-  cost: string;
-  purchaseTaxId: string | null;
+  /** Default unit price for this document type (cost, or sales price). */
+  price: string;
+  /** Default tax for this document type (purchase tax, or sales tax). */
+  taxId: string | null;
 }
 
 export interface TaxOption {
@@ -50,8 +56,9 @@ export interface LineDraft {
   analyticAccountId: string;
 }
 
-export interface PurchaseOrderFormValues {
-  vendorId: string;
+export interface OrderFormValues {
+  /** Vendor or customer id, depending on the document. */
+  partnerId: string;
   orderDate: string;
   expectedDate: string;
   reference: string;
@@ -89,24 +96,35 @@ function formatPreview(value: number): string {
   return value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function PurchaseOrderForm({
+export function OrderForm({
   action,
-  vendors,
+  partners,
   products,
   taxes,
   analyticAccounts,
   initialValues,
   submitLabel,
   cancelHref,
+  partnerLabel,
+  partnerFieldName,
+  successHref,
+  listHref,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
-  vendors: { id: string; name: string }[];
+  partners: { id: string; name: string }[];
   products: ProductOption[];
   taxes: TaxOption[];
   analyticAccounts: { id: string; label: string }[];
-  initialValues?: Partial<PurchaseOrderFormValues>;
+  initialValues?: Partial<OrderFormValues>;
   submitLabel: string;
   cancelHref: string;
+  /** "Vendor" or "Customer". */
+  partnerLabel: string;
+  /** Form field name the server expects: "vendorId" or "customerId". */
+  partnerFieldName: string;
+  /** Where to go after a successful save; the new id is appended. */
+  successHref: string;
+  listHref: string;
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(action, IDLE_STATE);
@@ -117,10 +135,10 @@ export function PurchaseOrderForm({
 
   useEffect(() => {
     if (state.status === "success") {
-      router.push(state.id ? `/purchases/orders/${state.id}` : "/purchases/orders");
+      router.push(state.id ? `${successHref}/${state.id}` : listHref);
       router.refresh();
     }
-  }, [state, router]);
+  }, [state, router, successHref, listHref]);
 
   const error = (field: string) => state.fieldErrors?.[field];
 
@@ -150,8 +168,8 @@ export function PurchaseOrderForm({
       ...(product
         ? {
             description: product.name,
-            unitPrice: product.cost,
-            taxId: product.purchaseTaxId ?? "none",
+            unitPrice: product.price,
+            taxId: product.taxId ?? "none",
           }
         : {}),
     });
@@ -185,15 +203,23 @@ export function PurchaseOrderForm({
           <CardTitle className="text-base">Order</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Field name="vendorId" label="Vendor" error={error("vendorId")} required>
-            <Select name="vendorId" defaultValue={initialValues?.vendorId ?? ""}>
-              <SelectTrigger id="vendorId" aria-invalid={error("vendorId") ? true : undefined}>
-                <SelectValue placeholder="Select a vendor" />
+          <Field
+            name={partnerFieldName}
+            label={partnerLabel}
+            error={error(partnerFieldName)}
+            required
+          >
+            <Select name={partnerFieldName} defaultValue={initialValues?.partnerId ?? ""}>
+              <SelectTrigger
+                id={partnerFieldName}
+                aria-invalid={error(partnerFieldName) ? true : undefined}
+              >
+                <SelectValue placeholder={`Select a ${partnerLabel.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
-                {vendors.map((vendor) => (
-                  <SelectItem key={vendor.id} value={vendor.id}>
-                    {vendor.name}
+                {partners.map((partner) => (
+                  <SelectItem key={partner.id} value={partner.id}>
+                    {partner.name}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -23,70 +23,83 @@ import {
 import { type ActionState, IDLE_STATE } from "@/modules/shared/action-state";
 
 /**
- * Register a payment against a vendor bill.
+ * Converts a confirmed order into its billing document:
+ * purchase order -> vendor bill, or sales order -> customer invoice.
  *
- * The amount defaults to the outstanding balance. The server enforces the real
- * rule: a payment may never exceed what is still owed, and the bill must be
- * posted and not already settled.
+ * Both flows collect the same things (journal, invoice date, due date,
+ * reference), so they share this dialog. The server does the real gate-keeping:
+ * it refuses an order that is still a draft, cancelled, or already converted --
+ * which is what prevents a duplicate bill or invoice.
  */
-export function RegisterPaymentDialog({
+export function ConvertDocumentDialog({
   action,
-  billNumber,
-  amountResidual,
+  orderId,
+  orderNumber,
   journals,
+  triggerLabel,
+  title,
+  description,
+  /** Form field the server expects: "purchaseOrderId" or "salesOrderId". */
+  orderFieldName,
+  /** Where the created document lives, e.g. "/sales/invoices". */
+  successHref,
+  referenceLabel,
+  referencePlaceholder,
+  referenceFieldName = "reference",
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
-  billNumber: string;
-  amountResidual: string;
-  journals: { id: string; label: string; method: "CASH" | "BANK" }[];
+  orderId: string;
+  orderNumber: string;
+  journals: { id: string; label: string }[];
+  triggerLabel: string;
+  title: string;
+  description: string;
+  orderFieldName: string;
+  successHref: string;
+  referenceLabel: string;
+  referencePlaceholder?: string;
+  referenceFieldName?: string;
 }) {
   const router = useRouter();
   const [openRequested, setOpenRequested] = useState(false);
   const [state, formAction] = useActionState(action, IDLE_STATE);
-  const [journalId, setJournalId] = useState(journals[0]?.id ?? "");
 
-  // Derived, not stored: a successful submit closes the dialog.
+  // Derived, not stored: a successful submit closes the dialog without an
+  // effect writing state back into it.
   const open = openRequested && state.status !== "success";
 
   useEffect(() => {
     if (state.status === "success") {
+      router.push(state.id ? `${successHref}/${state.id}` : successHref);
       router.refresh();
     }
-  }, [state, router]);
+  }, [state, router, successHref]);
 
   const error = (field: string) => state.fieldErrors?.[field];
-  const method = journals.find((journal) => journal.id === journalId)?.method ?? "BANK";
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <AlertDialog open={open} onOpenChange={setOpenRequested}>
       <AlertDialogTrigger asChild>
-        <Button size="sm">Register payment</Button>
+        <Button size="sm">{triggerLabel}</Button>
       </AlertDialogTrigger>
 
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Register payment</AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            Records a payment against bill {billNumber} and posts the matching journal entry.
-            Outstanding:{" "}
-            <span className="text-foreground tabular font-medium">{amountResidual}</span>
+            {description} Converting {orderNumber} creates a draft — it only affects the ledger once
+            you post it.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <form action={formAction} className="space-y-4" noValidate>
-          {/* The method follows the chosen journal: a cash journal pays cash. */}
-          <input type="hidden" name="method" value={method} />
+          <input type="hidden" name={orderFieldName} value={orderId} />
 
           <FormAlert state={state} />
 
-          <Field
-            name="journalId"
-            label="Pay through"
-            error={error("journalId")}
-            hint="Choose the cash or bank journal the money moves through."
-            required
-          >
-            <Select name="journalId" value={journalId} onValueChange={setJournalId}>
+          <Field name="journalId" label="Journal" error={error("journalId")} required>
+            <Select name="journalId" defaultValue={journals[0]?.id ?? ""}>
               <SelectTrigger id="journalId">
                 <SelectValue placeholder="Select a journal" />
               </SelectTrigger>
@@ -101,30 +114,24 @@ export function RegisterPaymentDialog({
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field name="amount" label="Amount" error={error("amount")} required>
+            <Field name="invoiceDate" label="Invoice date" error={error("invoiceDate")} required>
               <Input
-                {...fieldProps("amount", error("amount"))}
-                defaultValue={amountResidual}
-                inputMode="decimal"
-                className="tabular"
+                {...fieldProps("invoiceDate", error("invoiceDate"))}
+                type="date"
+                defaultValue={today}
                 required
               />
             </Field>
 
-            <Field name="paymentDate" label="Payment date" error={error("paymentDate")} required>
-              <Input
-                {...fieldProps("paymentDate", error("paymentDate"))}
-                type="date"
-                defaultValue={new Date().toISOString().slice(0, 10)}
-                required
-              />
+            <Field name="dueDate" label="Due date" error={error("dueDate")}>
+              <Input {...fieldProps("dueDate", error("dueDate"))} type="date" />
             </Field>
           </div>
 
-          <Field name="reference" label="Reference" error={error("reference")}>
+          <Field name={referenceFieldName} label={referenceLabel} error={error(referenceFieldName)}>
             <Input
-              {...fieldProps("reference", error("reference"))}
-              placeholder="Cheque or UTR number"
+              {...fieldProps(referenceFieldName, error(referenceFieldName))}
+              placeholder={referencePlaceholder}
               maxLength={80}
             />
           </Field>
@@ -133,7 +140,7 @@ export function RegisterPaymentDialog({
             <Button type="button" variant="outline" onClick={() => setOpenRequested(false)}>
               Cancel
             </Button>
-            <SubmitButton label="Register payment" />
+            <SubmitButton label={triggerLabel} />
           </div>
         </form>
       </AlertDialogContent>

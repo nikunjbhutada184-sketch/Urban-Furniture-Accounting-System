@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/data-table/empty-state";
 import { ListPagination } from "@/components/data-table/list-pagination";
 import { ListToolbar } from "@/components/data-table/list-toolbar";
 import { SortableHeader } from "@/components/data-table/sortable-header";
+import { ViewToggle, parseViewMode } from "@/components/data-table/view-toggle";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { type RawSearchParams, buildPageMeta, parseListParams } from "@/lib/list-params";
 import { archiveProductAction } from "@/modules/products/actions";
+import { ProductKanban } from "@/modules/products/components/product-kanban";
 import { listProductCategories, listProducts } from "@/modules/products/product-service";
 import {
   PRODUCT_SORT_FIELDS,
@@ -53,6 +55,7 @@ export default async function ProductsPage({
     },
   });
 
+  const view = parseViewMode(resolved);
   const { rows, total } = await listProducts(params);
   const meta = buildPageMeta(params, total);
 
@@ -69,25 +72,30 @@ export default async function ProductsPage({
         action={canCreate ? { label: "New product", href: "/products/new" } : undefined}
       />
 
-      <ListToolbar
-        searchPlaceholder="Search by name or SKU..."
-        filters={[
-          {
-            name: "type",
-            label: "Type",
-            options: PRODUCT_TYPE_OPTIONS.map((option) => ({ ...option })),
-          },
-          {
-            name: "category",
-            label: "Category",
-            options: categories.map((category) => ({
-              value: category.id,
-              label: category.name,
-            })),
-          },
-          { name: "status", label: "Status", options: ARCHIVE_FILTER_OPTIONS },
-        ]}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <ListToolbar
+            searchPlaceholder="Search by name or SKU..."
+            filters={[
+              {
+                name: "type",
+                label: "Type",
+                options: PRODUCT_TYPE_OPTIONS.map((option) => ({ ...option })),
+              },
+              {
+                name: "category",
+                label: "Category",
+                options: categories.map((category) => ({
+                  value: category.id,
+                  label: category.name,
+                })),
+              },
+              { name: "status", label: "Status", options: ARCHIVE_FILTER_OPTIONS },
+            ]}
+          />
+        </div>
+        <ViewToggle pathname={PATHNAME} searchParams={resolved} current={view} />
+      </div>
 
       <div className="rounded-xl border">
         {rows.length === 0 ? (
@@ -104,6 +112,17 @@ export default async function ProductsPage({
               action={canCreate ? { label: "New product", href: "/products/new" } : undefined}
             />
           )
+        ) : view === "kanban" ? (
+          <>
+            <ProductKanban rows={rows} />
+
+            <ListPagination
+              meta={meta}
+              pathname={PATHNAME}
+              searchParams={resolved}
+              itemLabel="products"
+            />
+          </>
         ) : (
           <>
             <Table>

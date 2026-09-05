@@ -87,7 +87,7 @@ counter and there is deliberately no hard-delete path.
 
 ---
 
-## Phase 4 — Purchase flow ✅ (pending a live database)
+## Phase 4 — Purchase flow ✅
 
 - [x] Purchase Order: draft, lines with tax, live totals, confirm, cancel
 - [x] PO → Vendor Bill conversion (quantities carried, `quantityBilled` tracked)
@@ -99,22 +99,43 @@ counter and there is deliberately no hard-delete path.
 - [x] Guards: non-confirmed orders cannot be billed, over-payment refused,
       draft bills cannot be paid, paid bills cannot be paid again, archived
       vendors/products refused, negative quantity and price refused
-- [ ] Integration test: PO → bill → posted entry, ledger balanced (needs a database)
+- [x] Integration test: PO → bill → posted entry, ledger balanced
 
 **Checkpoint:** spec section 7.2 up to the posted bill and the bank payment.
 
 ---
 
-## Phase 5 — Sales flow
+## Phase 5 — Sales flow ✅
 
-- [ ] Sales Order: draft, lines with tax, totals, confirm, cancel
-- [ ] SO → Customer Invoice conversion
-- [ ] Invoice posting → journal entry (Dr debtors / Cr income + Cr tax payable)
-- [ ] Stock moves OUT for tracked goods
-- [ ] Invoice list/detail UI, printable invoice view
-- [ ] Integration test: SO → invoice → posted entry, ledger balanced
+- [x] Sales Order: draft, lines with tax, live totals, confirm, cancel
+- [x] SO → Customer Invoice conversion (`quantityInvoiced` tracked)
+- [x] Invoice posting → journal entry (Dr debtors / Cr income + Cr tax payable)
+- [x] Customer receipt → journal entry (Dr bank or cash / Cr debtors)
+- [x] Allocation, residual recomputation and status transitions
+- [x] Stock moves OUT for tracked goods
+- [x] Order and invoice list/detail UI with status badges and the posted entry shown
+- [x] Customer outstanding report (documents vs ledger, with overdue flagging)
+- [x] Guards: only confirmed orders can be invoiced (no duplicate invoice),
+      over-payment refused, draft invoices cannot be paid, paid invoices cannot
+      be paid again, a vendor cannot be a customer, archived products refused,
+      negative quantity and price refused, invalid status transitions refused
+- [x] Integration test: SO → invoice → payment → ledger, against real PostgreSQL
 
-**Checkpoint:** spec section 7.3 up to the posted invoice.
+**Checkpoint:** spec section 7.3 — 5 Office Chairs for Nimesh Pathak, invoiced,
+paid, ledger balanced. Verified by `tests/integration/sales-flow.test.ts`.
+
+### Shared components extracted in this phase
+
+`OrderForm`, `ConvertDocumentDialog`, `PaymentDialog`, `DocumentActionButton`
+and the status badges are now shared between purchases and sales, so the two
+flows differ only in their services and labels — not in duplicated UI.
+
+### Kanban views
+
+- [x] List / Kanban toggle driven by `?view=`, preserving search, filter and sort
+- [x] Contact kanban (image, name, email, mobile)
+- [x] Product kanban (image, name, sales price, cost)
+- [ ] Budget report kanban — arrives with the budget module in Phase 8
 
 ---
 

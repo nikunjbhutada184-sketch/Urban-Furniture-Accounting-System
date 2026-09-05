@@ -22,6 +22,7 @@ export interface ContactListRow {
   mobile: string | null;
   city: string | null;
   state: string | null;
+  profileImage: string | null;
   isArchived: boolean;
   hasPortalUser: boolean;
 }
@@ -63,6 +64,7 @@ export async function listContacts(
         mobile: true,
         city: true,
         state: true,
+        profileImage: true,
         isArchived: true,
         portalUser: { select: { id: true } },
       },
@@ -80,6 +82,7 @@ export async function listContacts(
       mobile: record.mobile,
       city: record.city,
       state: record.state,
+      profileImage: record.profileImage,
       isArchived: record.isArchived,
       hasPortalUser: Boolean(record.portalUser),
     })),

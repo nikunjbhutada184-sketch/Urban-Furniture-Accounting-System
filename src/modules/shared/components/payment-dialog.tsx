@@ -23,63 +23,74 @@ import {
 import { type ActionState, IDLE_STATE } from "@/modules/shared/action-state";
 
 /**
- * "Goods received - create the vendor bill."
+ * Register a payment against a bill (money out) or an invoice (money in).
  *
- * Collects the vendor's invoice date, due date and reference, then hands over
- * to the server, which refuses to bill an order that is still a draft,
- * cancelled, or already billed.
+ * The amount defaults to the outstanding balance. The server enforces the real
+ * rules: never more than is owed, the document must be posted, and an
+ * already-settled document is refused -- which is what blocks a duplicate
+ * payment.
  */
-export function ConvertToBillDialog({
+export function PaymentDialog({
   action,
-  purchaseOrderId,
-  purchaseOrderNumber,
+  documentNumber,
+  amountResidual,
   journals,
+  triggerLabel,
+  title,
+  currencyNote,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
-  purchaseOrderId: string;
-  purchaseOrderNumber: string;
-  journals: { id: string; label: string }[];
+  documentNumber: string;
+  amountResidual: string;
+  journals: { id: string; label: string; method: "CASH" | "BANK" }[];
+  triggerLabel: string;
+  title: string;
+  currencyNote: string;
 }) {
   const router = useRouter();
   const [openRequested, setOpenRequested] = useState(false);
   const [state, formAction] = useActionState(action, IDLE_STATE);
+  const [journalId, setJournalId] = useState(journals[0]?.id ?? "");
 
-  // Derived, not stored: a successful submit closes the dialog without an
-  // effect having to write state back into it.
   const open = openRequested && state.status !== "success";
 
   useEffect(() => {
-    if (state.status === "success") {
-      router.push(state.id ? `/purchases/bills/${state.id}` : "/purchases/bills");
-      router.refresh();
-    }
+    if (state.status === "success") router.refresh();
   }, [state, router]);
 
   const error = (field: string) => state.fieldErrors?.[field];
-  const today = new Date().toISOString().slice(0, 10);
+  // The payment method follows the chosen journal: a cash journal pays cash.
+  const method = journals.find((journal) => journal.id === journalId)?.method ?? "BANK";
 
   return (
     <AlertDialog open={open} onOpenChange={setOpenRequested}>
       <AlertDialogTrigger asChild>
-        <Button size="sm">Create vendor bill</Button>
+        <Button size="sm">{triggerLabel}</Button>
       </AlertDialogTrigger>
 
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Create vendor bill</AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            Converts purchase order {purchaseOrderNumber} into a draft vendor bill. The bill only
-            affects the ledger once you post it.
+            {currencyNote} against {documentNumber}, and posts the matching journal entry.
+            Outstanding:{" "}
+            <span className="text-foreground tabular font-medium">{amountResidual}</span>
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <form action={formAction} className="space-y-4" noValidate>
-          <input type="hidden" name="purchaseOrderId" value={purchaseOrderId} />
+          <input type="hidden" name="method" value={method} />
 
           <FormAlert state={state} />
 
-          <Field name="journalId" label="Journal" error={error("journalId")} required>
-            <Select name="journalId" defaultValue={journals[0]?.id ?? ""}>
+          <Field
+            name="journalId"
+            label={triggerLabel.startsWith("Receive") ? "Receive into" : "Pay through"}
+            error={error("journalId")}
+            hint="Choose the cash or bank journal the money moves through."
+            required
+          >
+            <Select name="journalId" value={journalId} onValueChange={setJournalId}>
               <SelectTrigger id="journalId">
                 <SelectValue placeholder="Select a journal" />
               </SelectTrigger>
@@ -94,28 +105,30 @@ export function ConvertToBillDialog({
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field name="invoiceDate" label="Invoice date" error={error("invoiceDate")} required>
+            <Field name="amount" label="Amount" error={error("amount")} required>
               <Input
-                {...fieldProps("invoiceDate", error("invoiceDate"))}
-                type="date"
-                defaultValue={today}
+                {...fieldProps("amount", error("amount"))}
+                defaultValue={amountResidual}
+                inputMode="decimal"
+                className="tabular"
                 required
               />
             </Field>
 
-            <Field name="dueDate" label="Due date" error={error("dueDate")}>
-              <Input {...fieldProps("dueDate", error("dueDate"))} type="date" />
+            <Field name="paymentDate" label="Payment date" error={error("paymentDate")} required>
+              <Input
+                {...fieldProps("paymentDate", error("paymentDate"))}
+                type="date"
+                defaultValue={new Date().toISOString().slice(0, 10)}
+                required
+              />
             </Field>
           </div>
 
-          <Field
-            name="vendorReference"
-            label="Vendor invoice number"
-            error={error("vendorReference")}
-          >
+          <Field name="reference" label="Reference" error={error("reference")}>
             <Input
-              {...fieldProps("vendorReference", error("vendorReference"))}
-              placeholder="Their invoice reference"
+              {...fieldProps("reference", error("reference"))}
+              placeholder="Cheque or UTR number"
               maxLength={80}
             />
           </Field>
@@ -124,7 +137,7 @@ export function ConvertToBillDialog({
             <Button type="button" variant="outline" onClick={() => setOpenRequested(false)}>
               Cancel
             </Button>
-            <SubmitButton label="Create bill" />
+            <SubmitButton label={triggerLabel} />
           </div>
         </form>
       </AlertDialogContent>
