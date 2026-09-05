@@ -1,95 +1,148 @@
 "use client";
 
-import { useTransition } from "react";
-import { adjustStockAction } from "@/modules/inventory/actions";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useActionState, useEffect, useState } from "react";
+import { Field, FormAlert, SubmitButton, fieldProps } from "@/components/forms/field";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { adjustStockAction } from "@/modules/inventory/actions";
+import { type ActionState, IDLE_STATE } from "@/modules/shared/action-state";
 
-export function AdjustStockForm({ products }: { products: { id: string; name: string; cost: any }[] }) {
+export interface AdjustableProduct {
+  id: string;
+  name: string;
+  /** Serialised cost, used to prefill the unit cost. */
+  cost: string;
+  quantityOnHand: string;
+}
+
+/**
+ * Manual stock adjustment.
+ *
+ * Amounts are submitted as strings and validated server-side by the same Zod
+ * schema the service uses, so nothing is parsed into a float on the way.
+ */
+export function AdjustStockForm({ products }: { products: AdjustableProduct[] }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const [state, formAction] = useActionState<ActionState, FormData>(
+    adjustStockAction,
+    IDLE_STATE,
+  );
+  const [productId, setProductId] = useState(products[0]?.id ?? "");
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    const formData = new FormData(e.currentTarget);
-    
-    startTransition(async () => {
-      const result = await adjustStockAction({
-        productId: formData.get("productId") as string,
-        quantity: parseFloat(formData.get("quantity") as string),
-        unitCost: parseFloat(formData.get("unitCost") as string),
-        reference: formData.get("reference") as string,
-      });
+  useEffect(() => {
+    if (state.status === "success") {
+      router.push("/inventory");
+      router.refresh();
+    }
+  }, [state, router]);
 
-      if (!result.success) {
-        setError(result.error || "Failed to adjust stock");
-      } else {
-        router.push("/inventory");
-        router.refresh();
-      }
-    });
-  }
+  const error = (field: string) => state.fieldErrors?.[field];
+  const selected = products.find((product) => product.id === productId);
 
   return (
-    <Card className="max-w-2xl mx-auto border-emerald-100 shadow-sm">
-      <CardHeader className="bg-emerald-50/50 border-b border-emerald-100">
-        <CardTitle className="text-emerald-800">New Stock Adjustment</CardTitle>
-        <CardDescription>
-          Record a manual inventory adjustment. Use positive quantities to add stock, and negative quantities to remove stock.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && <div className="text-sm font-medium text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>}
-          
-          <div className="space-y-2">
-            <Label htmlFor="productId">Product</Label>
-            <Select name="productId" required>
-              <SelectTrigger className="border-emerald-200 focus:ring-emerald-500">
-                <SelectValue placeholder="Select a product" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <form action={formAction} className="space-y-6" noValidate>
+      <FormAlert state={state} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Stock adjustment</CardTitle>
+          <CardDescription>
+            Corrects the recorded quantity for an inventory-tracked product. Use a positive
+            quantity to add stock and a negative one to remove it.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Field name="productId" label="Product" error={error("productId")} required>
+              <Select name="productId" value={productId} onValueChange={setProductId}>
+                <SelectTrigger
+                  id="productId"
+                  aria-invalid={error("productId") ? true : undefined}
+                >
+                  <SelectValue placeholder="Select a product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} — {product.quantityOnHand} on hand
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity (Positive/Negative)</Label>
-              <Input id="quantity" name="quantity" type="number" step="0.001" required className="border-emerald-200 focus-visible:ring-emerald-500" placeholder="e.g. -5 or 10" />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="unitCost">Unit Cost (Rs.)</Label>
-              <Input id="unitCost" name="unitCost" type="number" step="0.01" required min="0" className="border-emerald-200 focus-visible:ring-emerald-500" placeholder="0.00" />
-            </div>
-          </div>
+          <Field
+            name="quantity"
+            label="Quantity"
+            error={error("quantity")}
+            hint={
+              selected
+                ? `Currently ${selected.quantityOnHand} on hand. Negative removes stock.`
+                : "Negative removes stock."
+            }
+            required
+          >
+            <Input
+              {...fieldProps("quantity", error("quantity"))}
+              defaultValue="1"
+              inputMode="decimal"
+              className="tabular"
+              required
+            />
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="reference">Reference / Reason</Label>
-            <Input id="reference" name="reference" className="border-emerald-200 focus-visible:ring-emerald-500" placeholder="e.g. Broken in transit, Physical count variance" />
-          </div>
+          <Field
+            name="unitCost"
+            label="Unit cost"
+            error={error("unitCost")}
+            hint="Used to value the adjustment."
+            required
+          >
+            <Input
+              {...fieldProps("unitCost", error("unitCost"))}
+              key={selected?.id ?? "none"}
+              defaultValue={selected?.cost ?? "0"}
+              inputMode="decimal"
+              className="tabular"
+              required
+            />
+          </Field>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-emerald-100">
-            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending} className="bg-emerald-600 hover:bg-emerald-700">
-              {isPending ? "Saving..." : "Adjust Stock"}
-            </Button>
+          <div className="sm:col-span-2">
+            <Field
+              name="reference"
+              label="Reason"
+              error={error("reference")}
+              hint="Why the correction was needed, e.g. a stock count or breakage."
+            >
+              <Input
+                {...fieldProps("reference", error("reference"))}
+                placeholder="Annual stock count"
+                maxLength={120}
+              />
+            </Field>
           </div>
-        </form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center gap-2">
+        <SubmitButton label="Adjust stock" />
+        <Button type="button" variant="ghost" asChild>
+          <Link href="/inventory">Cancel</Link>
+        </Button>
+      </div>
+    </form>
   );
 }

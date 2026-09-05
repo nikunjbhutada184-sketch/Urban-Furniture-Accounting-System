@@ -3,63 +3,96 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+ * Theme
+ *
+ * A soft neutral ground with white cards floating on it, a green accent, and
+ * generous radii. Financial figures are the loudest thing on the page: the
+ * chrome stays quiet so columns of numbers are easy to scan.
+ * ------------------------------------------------------------------------- */
+
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.995 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 1rem;
+
+  /* Page ground and the cards that float on it. */
+  --background: oklch(0.958 0.003 240);
+  --foreground: oklch(0.17 0.01 250);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.17 0.01 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.35 0.055 45);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0.005 60);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0.004 60);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.955 0.015 70);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.55 0.13 155);
-  --warning: oklch(0.7 0.15 75);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.45 0.05 45);
-  --sidebar: oklch(0.985 0.004 60);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-accent: oklch(0.955 0.012 70);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.17 0.01 250);
+
+  /* Green accent. */
+  --primary: oklch(0.57 0.132 158);
+  --primary-foreground: oklch(0.99 0.005 160);
+  --primary-soft: oklch(0.95 0.035 160);
+
+  --secondary: oklch(0.968 0.004 240);
+  --secondary-foreground: oklch(0.26 0.012 250);
+  --muted: oklch(0.968 0.004 240);
+  --muted-foreground: oklch(0.53 0.012 250);
+  --accent: oklch(0.955 0.02 162);
+  --accent-foreground: oklch(0.32 0.06 160);
+
+  --destructive: oklch(0.585 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.57 0.132 158);
+  --warning: oklch(0.72 0.15 70);
+
+  --border: oklch(0.92 0.004 250);
+  --input: oklch(0.9 0.005 250);
+  --ring: oklch(0.57 0.132 158);
+
+  /* The sidebar is a floating card, so it shares the card surface. */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.17 0.01 250);
+  --sidebar-border: oklch(0.93 0.004 250);
+  --sidebar-accent: oklch(0.955 0.02 162);
+  --sidebar-accent-foreground: oklch(0.32 0.06 160);
+
+  /* Chart series. Validated for CVD separation and contrast against white. */
+  --chart-1: oklch(0.63 0.13 162);
+  --chart-2: oklch(0.66 0.17 42);
+  --chart-grid: oklch(0.92 0.004 250);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0.04 70);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.3 0.015 70);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.7 0.14 155);
-  --warning: oklch(0.8 0.15 75);
-  --border: oklch(1 0 0 / 12%);
+  --background: oklch(0.16 0.008 250);
+  --foreground: oklch(0.97 0.003 250);
+  --card: oklch(0.21 0.009 250);
+  --card-foreground: oklch(0.97 0.003 250);
+  --popover: oklch(0.21 0.009 250);
+  --popover-foreground: oklch(0.97 0.003 250);
+
+  --primary: oklch(0.68 0.14 160);
+  --primary-foreground: oklch(0.16 0.02 160);
+  --primary-soft: oklch(0.28 0.05 160);
+
+  --secondary: oklch(0.27 0.01 250);
+  --secondary-foreground: oklch(0.97 0.003 250);
+  --muted: oklch(0.27 0.01 250);
+  --muted-foreground: oklch(0.7 0.01 250);
+  --accent: oklch(0.3 0.045 160);
+  --accent-foreground: oklch(0.93 0.03 160);
+
+  --destructive: oklch(0.68 0.18 25);
+  --destructive-foreground: oklch(0.16 0 0);
+  --success: oklch(0.68 0.14 160);
+  --warning: oklch(0.78 0.15 70);
+
+  --border: oklch(1 0 0 / 11%);
   --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.556 0 0);
-  --sidebar: oklch(0.185 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.68 0.14 160);
+
+  --sidebar: oklch(0.21 0.009 250);
+  --sidebar-foreground: oklch(0.97 0.003 250);
+  --sidebar-border: oklch(1 0 0 / 11%);
+  --sidebar-accent: oklch(0.3 0.045 160);
+  --sidebar-accent-foreground: oklch(0.93 0.03 160);
+
+  --chart-1: oklch(0.68 0.13 162);
+  --chart-2: oklch(0.7 0.16 44);
+  --chart-grid: oklch(1 0 0 / 12%);
 }
 
 @theme inline {
@@ -71,6 +104,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -89,10 +123,15 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-grid: var(--chart-grid);
+
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 4px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
 }
 
 @layer base {
@@ -107,8 +146,24 @@
       "calt" 1;
   }
 
-  /* Monetary figures are tabular so columns of numbers line up. */
+  /* Financial figures line up column-to-column. */
   .tabular {
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+@layer components {
+  /* The soft lift that makes a card read as floating on the ground. */
+  .card-float {
+    box-shadow:
+      0 1px 2px oklch(0.17 0.01 250 / 4%),
+      0 8px 24px -12px oklch(0.17 0.01 250 / 10%);
+  }
+
+  .dark .card-float {
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 24%),
+      0 8px 24px -12px oklch(0 0 0 / 40%);
   }
 }

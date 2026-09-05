@@ -1,6 +1,30 @@
-import { Prisma, StockMoveType, StockMoveDirection } from "@prisma/client";
-import { Decimal } from "@prisma/client/runtime/library";
-import { type DbClient } from "@/server/db/prisma";
+import { type StockMove, StockMoveType } from "@prisma/client";
+import { recordAudit } from "@/server/audit/audit-service";
+import { type DbClient, prisma } from "@/server/db/prisma";
+import { ValidationError } from "@/server/errors";
+import {
+  type Decimal,
+  ZERO,
+  add,
+  isNegative,
+  lineAmount,
+  subtract,
+  toAmountString,
+  toMoney,
+  toQuantity,
+} from "@/server/money";
+import { type StockAdjustmentInput } from "./schemas";
+
+/**
+ * Inventory service.
+ *
+ * v1 is periodic inventory: stock moves record what physically happened and
+ * drive the stock report, but do not themselves post to the ledger. Purchases
+ * move stock IN when a vendor bill is posted; sales move it OUT when a customer
+ * invoice is posted; adjustments are manual corrections.
+ *
+ * Quantities and values are Decimal throughout -- never JavaScript numbers.
+ */
 
 export interface StockBalance {
   productId: string;
@@ -8,25 +32,26 @@ export interface StockBalance {
   valueOnHand: Decimal;
 }
 
-/**
- * Calculates current stock quantity and value for a product by aggregating its stock moves.
- */
-export async function getCurrentStock(tx: DbClient, productId: string): Promise<StockBalance> {
-  const moves = await tx.stockMove.findMany({
+/** Current quantity and value on hand, aggregated from the move history. */
+export async function getCurrentStock(
+  productId: string,
+  client: DbClient = prisma,
+): Promise<StockBalance> {
+  const moves = await client.stockMove.findMany({
     where: { productId },
     select: { direction: true, quantity: true, value: true },
   });
 
-  let quantityOnHand = new Decimal(0);
-  let valueOnHand = new Decimal(0);
+  let quantityOnHand = ZERO;
+  let valueOnHand = ZERO;
 
   for (const move of moves) {
     if (move.direction === "IN") {
-      quantityOnHand = quantityOnHand.plus(move.quantity);
-      valueOnHand = valueOnHand.plus(move.value);
-    } else if (move.direction === "OUT") {
-      quantityOnHand = quantityOnHand.minus(move.quantity);
-      valueOnHand = valueOnHand.minus(move.value);
+      quantityOnHand = add(quantityOnHand, move.quantity);
+      valueOnHand = add(valueOnHand, move.value);
+    } else {
+      quantityOnHand = subtract(quantityOnHand, move.quantity);
+      valueOnHand = subtract(valueOnHand, move.value);
     }
   }
 
@@ -34,52 +59,194 @@ export async function getCurrentStock(tx: DbClient, productId: string): Promise<
 }
 
 /**
- * Creates an adjustment move to correct the stock level.
- * @param quantity The amount to add (positive) or subtract (negative).
- * @param unitCost The cost per unit of the adjusted quantity.
+ * Manual stock correction.
+ *
+ * A positive quantity adds stock, a negative one removes it. Removing more than
+ * is on hand is refused: negative stock is not a state this business can be in.
  */
 export async function adjustStock(
   tx: DbClient,
-  params: {
-    productId: string;
-    quantity: number | string | Decimal;
-    unitCost: number | string | Decimal;
-    reference?: string;
-    userId?: string | null;
-  },
-) {
-  const qty = new Decimal(params.quantity);
-  const cost = new Decimal(params.unitCost);
-  
-  if (qty.isZero()) {
-    throw new Error("Adjustment quantity cannot be zero.");
+  input: StockAdjustmentInput,
+  context: { userId?: string | null } = {},
+): Promise<StockMove> {
+  const product = await tx.product.findUnique({
+    where: { id: input.productId },
+    select: { id: true, name: true, isArchived: true, trackInventory: true },
+  });
+
+  if (!product) {
+    throw new ValidationError("Select a valid product.", {
+      fieldErrors: { productId: "This product does not exist." },
+    });
+  }
+  if (product.isArchived) {
+    throw new ValidationError(`${product.name} is archived and cannot be adjusted.`, {
+      fieldErrors: { productId: "This product is archived." },
+    });
+  }
+  if (!product.trackInventory) {
+    throw new ValidationError(
+      `${product.name} is not inventory-tracked. Enable stock tracking on the product first.`,
+      { fieldErrors: { productId: "This product does not track inventory." } },
+    );
   }
 
-  const direction: StockMoveDirection = qty.isPositive() ? "IN" : "OUT";
-  const absQty = qty.abs();
-  const value = absQty.mul(cost);
+  const signedQuantity = toQuantity(input.quantity);
 
-  // Business Rule: Prevent negative stock
+  if (signedQuantity.isZero()) {
+    throw new ValidationError("An adjustment must change the quantity.", {
+      fieldErrors: { quantity: "Enter a non-zero quantity." },
+    });
+  }
+
+  const direction = signedQuantity.isPositive() ? "IN" : "OUT";
+  const quantity = signedQuantity.absoluteValue();
+  const unitCost = toMoney(input.unitCost);
+  const value = lineAmount(quantity, unitCost);
+
+  // Never let stock go negative.
   if (direction === "OUT") {
-    const currentStock = await getCurrentStock(tx, params.productId);
-    if (currentStock.quantityOnHand.minus(absQty).isNegative()) {
-      throw new Error("Adjustment would result in negative stock, which is prevented by business rules.");
+    const current = await getCurrentStock(input.productId, tx);
+    const resulting = subtract(current.quantityOnHand, quantity);
+
+    if (isNegative(resulting)) {
+      throw new ValidationError(
+        `Only ${toAmountString(current.quantityOnHand)} of ${product.name} is on hand, so ${toAmountString(quantity)} cannot be removed.`,
+        { fieldErrors: { quantity: "Not enough stock on hand." } },
+      );
     }
   }
 
   const move = await tx.stockMove.create({
     data: {
-      productId: params.productId,
+      productId: input.productId,
       moveType: StockMoveType.ADJUSTMENT,
       direction,
       date: new Date(),
-      quantity: absQty,
-      unitCost: cost,
-      value: value,
-      reference: params.reference || "Manual Adjustment",
-      createdById: params.userId,
+      quantity,
+      unitCost,
+      value,
+      reference: input.reference ?? "Manual adjustment",
+      sourceType: "StockAdjustment",
+      createdById: context.userId ?? null,
     },
   });
 
+  await recordAudit(
+    tx,
+    {
+      action: "update",
+      entity: "StockMove",
+      entityId: move.id,
+      summary: `Adjusted ${product.name} by ${toAmountString(signedQuantity)}`,
+      metadata: { productId: product.id, direction },
+    },
+    context,
+  );
+
   return move;
+}
+
+export interface StockListRow {
+  productId: string;
+  name: string;
+  sku: string | null;
+  quantityOnHand: string;
+  valueOnHand: string;
+  moveCount: number;
+}
+
+/**
+ * On-hand stock for every tracked product.
+ *
+ * Aggregated in the database rather than by loading every move into memory.
+ */
+export async function listStock(client: DbClient = prisma): Promise<StockListRow[]> {
+  const products = await client.product.findMany({
+    where: { trackInventory: true, isArchived: false },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, sku: true },
+  });
+
+  if (products.length === 0) return [];
+
+  const grouped = await client.stockMove.groupBy({
+    by: ["productId", "direction"],
+    where: { productId: { in: products.map((product) => product.id) } },
+    _sum: { quantity: true, value: true },
+    _count: { _all: true },
+  });
+
+  const totals = new Map<string, { quantity: Decimal; value: Decimal; moves: number }>();
+
+  for (const row of grouped) {
+    const current = totals.get(row.productId) ?? { quantity: ZERO, value: ZERO, moves: 0 };
+    const quantity = toQuantity(row._sum.quantity ?? 0);
+    const value = toMoney(row._sum.value ?? 0);
+
+    totals.set(row.productId, {
+      quantity:
+        row.direction === "IN"
+          ? add(current.quantity, quantity)
+          : subtract(current.quantity, quantity),
+      value:
+        row.direction === "IN" ? add(current.value, value) : subtract(current.value, value),
+      moves: current.moves + row._count._all,
+    });
+  }
+
+  return products.map((product) => {
+    const total = totals.get(product.id);
+    return {
+      productId: product.id,
+      name: product.name,
+      sku: product.sku,
+      quantityOnHand: toAmountString(total?.quantity ?? 0),
+      valueOnHand: toAmountString(total?.value ?? 0),
+      moveCount: total?.moves ?? 0,
+    };
+  });
+}
+
+/** Products that can be stock-adjusted, with their cost and current quantity. */
+export async function listAdjustableProducts(
+  client: DbClient = prisma,
+): Promise<{ id: string; name: string; cost: string; quantityOnHand: string }[]> {
+  const [products, stock] = await Promise.all([
+    client.product.findMany({
+      where: { trackInventory: true, isArchived: false },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, cost: true },
+    }),
+    listStock(client),
+  ]);
+
+  const onHandById = new Map(stock.map((row) => [row.productId, row.quantityOnHand]));
+
+  return products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    cost: toAmountString(product.cost),
+    quantityOnHand: onHandById.get(product.id) ?? "0.00",
+  }));
+}
+
+/** Every movement for one product, newest first. */
+export async function getStockMoves(productId: string, client: DbClient = prisma) {
+  return client.stockMove.findMany({
+    where: { productId },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      date: true,
+      moveType: true,
+      direction: true,
+      quantity: true,
+      unitCost: true,
+      value: true,
+      reference: true,
+      sourceType: true,
+      sourceId: true,
+    },
+  });
 }

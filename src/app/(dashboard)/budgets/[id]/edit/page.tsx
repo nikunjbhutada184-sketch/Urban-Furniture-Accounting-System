@@ -2,16 +2,16 @@ import { type Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { listAnalyticOptions } from "@/modules/analytic/analytic-service";
-import { reviseBudgetAction } from "@/modules/budgets/actions";
+import { updateBudgetAction } from "@/modules/budgets/actions";
 import { listBudgetOwners } from "@/modules/budgets/budget-queries";
 import { budgetPermissions, getBudget } from "@/modules/budgets/budget-service";
 import { BudgetForm } from "@/modules/budgets/components/budget-form";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 import { isAppError } from "@/server/errors";
 
-export const metadata: Metadata = { title: "Revise budget" };
+export const metadata: Metadata = { title: "Edit budget" };
 
-export default async function ReviseBudgetPage({
+export default async function EditBudgetPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -24,8 +24,8 @@ export default async function ReviseBudgetPage({
     throw error;
   });
 
-  // Only a confirmed budget can be revised; the service enforces this too.
-  if (!budgetPermissions(budget.status).canRevise) redirect(`/budgets/${id}`);
+  // Only a draft is editable; the service enforces this too.
+  if (!budgetPermissions(budget.status).canEdit) redirect(`/budgets/${id}`);
 
   const [analyticAccounts, users] = await Promise.all([
     listAnalyticOptions(),
@@ -34,19 +34,10 @@ export default async function ReviseBudgetPage({
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <PageHeader
-        title={`Revise ${budget.name}`}
-        description="Creates a new draft revision. The current version is kept and marked Revised."
-      />
-
-      <p className="text-muted-foreground bg-muted/50 rounded-md border p-3 text-sm">
-        The period ({budget.periodStart.toISOString().slice(0, 10)} to{" "}
-        {budget.periodEnd.toISOString().slice(0, 10)}) and responsible person carry over from the
-        original. Adjust the planned amounts below.
-      </p>
+      <PageHeader title={`Edit ${budget.name}`} description="Only draft budgets can be edited." />
 
       <BudgetForm
-        action={reviseBudgetAction.bind(null, id)}
+        action={updateBudgetAction.bind(null, id)}
         analyticAccounts={analyticAccounts.map((analytic) => ({
           id: analytic.id,
           code: analytic.code,
@@ -54,15 +45,18 @@ export default async function ReviseBudgetPage({
           type: analytic.type,
         }))}
         users={users}
-        lockHeader
         initialValues={{
+          name: budget.name,
+          periodStart: budget.periodStart.toISOString().slice(0, 10),
+          periodEnd: budget.periodEnd.toISOString().slice(0, 10),
+          responsibleUserId: budget.responsibleUserId ?? "none",
           lines: budget.lines.map((line, index) => ({
             key: `existing-${index}`,
             analyticAccountId: line.analyticAccountId,
             plannedAmount: line.plannedAmount.toString(),
           })),
         }}
-        submitLabel="Create revision"
+        submitLabel="Save changes"
         cancelHref={`/budgets/${id}`}
         successHref="/budgets"
       />

@@ -1,31 +1,30 @@
 "use server";
 
-import { requireUser } from "@/modules/auth/session";
-import { prisma } from "@/server/db/prisma";
-import { runAction } from "@/modules/shared/run-action";
-import { adjustStock, getCurrentStock } from "./stock-service";
-import { z } from "zod";
-import { revalidatePath } from "next/cache";
+import { type ActionState } from "@/modules/shared/action-state";
+import { runFormAction } from "@/modules/shared/run-action";
+import { stockAdjustmentSchema } from "./schemas";
+import { adjustStock } from "./stock-service";
 
-const adjustStockSchema = z.object({
-  productId: z.string().min(1, "Product is required"),
-  quantity: z.number().refine((val) => val !== 0, "Quantity cannot be zero"),
-  unitCost: z.number().min(0, "Unit cost must be positive"),
-  reference: z.string().optional(),
-});
-
-export const adjustStockAction = runAction(
-  adjustStockSchema,
-  async (data, context) => {
-    const user = await requireUser();
-    
-    const move = await adjustStock(prisma, {
-      ...data,
-      userId: user.id,
-    });
-    
-    revalidatePath("/inventory");
-    revalidatePath(`/inventory/${data.productId}`);
-    return move;
-  }
-);
+/**
+ * Inventory server actions.
+ *
+ * A stock adjustment changes what the business believes it owns, so it is a
+ * transaction-level action, not master data: it needs `transaction:create` and
+ * runs inside the shared authorise -> validate -> transaction pipeline.
+ */
+export async function adjustStockAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runFormAction({
+    permission: "transaction:create",
+    schema: stockAdjustmentSchema,
+    formData,
+    handler: async (tx, input, actor) => {
+      const move = await adjustStock(tx, input, { userId: actor.id });
+      return { id: move.productId };
+    },
+    successMessage: "Stock adjusted.",
+    revalidate: ["/inventory"],
+  });
+}
