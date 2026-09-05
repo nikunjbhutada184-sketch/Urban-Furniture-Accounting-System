@@ -15,7 +15,11 @@ import { authConfig } from "./auth.config";
  */
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
+  /**
+   * What the sign-in form calls "Login Id". An email address is accepted here
+   * too, so an existing account can still sign in the way it always has.
+   */
+  loginId: z.string().min(1).max(160),
   password: z.string().min(1),
 });
 
@@ -26,19 +30,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        loginId: { label: "Login Id", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(rawCredentials) {
         const parsed = credentialsSchema.safeParse(rawCredentials);
         if (!parsed.success) return null;
 
-        const { email, password } = parsed.data;
+        const { loginId, password } = parsed.data;
+        const identifier = loginId.toLowerCase().trim();
 
-        const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase().trim() },
+        // Login ids and emails are both stored lower-cased and are unique
+        // across their own columns, so at most one row can match.
+        const user = await prisma.user.findFirst({
+          where: { OR: [{ loginId: identifier }, { email: identifier }] },
           select: {
             id: true,
+            loginId: true,
             email: true,
             name: true,
             image: true,

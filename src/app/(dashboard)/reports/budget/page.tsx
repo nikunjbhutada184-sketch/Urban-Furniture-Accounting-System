@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type RawSearchParams } from "@/lib/list-params";
+import { BudgetPie } from "@/modules/budgets/components/budget-pie";
 import { ReportShell } from "@/modules/reporting/components/report-shell";
 import { getBudgetReport, parsePeriod } from "@/modules/reporting/report-service";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
@@ -74,8 +75,17 @@ export default async function BudgetReportPage({
     >
       <div className="grid gap-4 sm:grid-cols-4">
         <StatCard label="Planned" value={format(totals.planned)} />
-        <StatCard label="Committed" value={format(totals.committed)} hint="Confirmed, not yet posted" />
-        <StatCard label="Achieved" value={format(totals.achieved)} tone="primary" hint="From the posted ledger" />
+        <StatCard
+          label="Committed"
+          value={format(totals.committed)}
+          hint="Confirmed, not yet posted"
+        />
+        <StatCard
+          label="Achieved"
+          value={format(totals.achieved)}
+          tone="primary"
+          hint="From the posted ledger"
+        />
         <StatCard
           label="To achieve"
           value={format(Math.max(totals.planned - totals.achieved, 0))}
@@ -100,6 +110,7 @@ export default async function BudgetReportPage({
                 <TableHead className="text-right">Achieved Amount</TableHead>
                 <TableHead className="text-right">Achieved %</TableHead>
                 <TableHead className="text-right">Amount To Achieve</TableHead>
+                <TableHead className="text-center">Pie Chart</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -138,6 +149,11 @@ export default async function BudgetReportPage({
                   </TableCell>
                   <TableCell className="text-right">
                     <Amount value={row.toAchieve} size="sm" />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-center">
+                      <BudgetPie achieved={row.achieved} toAchieve={row.toAchieve} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

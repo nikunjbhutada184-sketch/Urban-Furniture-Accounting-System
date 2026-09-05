@@ -1,3 +1,4 @@
+import { InvoiceStatus, JournalType } from "@prisma/client";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { EmptyState } from "@/components/data-table/empty-state";
@@ -16,10 +17,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type RawSearchParams, buildPageMeta, parseListParams } from "@/lib/list-params";
+import { listJournalOptions } from "@/modules/journals/journal-service";
 import { INVOICE_STATUS_OPTIONS } from "@/modules/purchases/schemas";
+import { receiveInvoicePaymentAction } from "@/modules/sales/actions";
 import { listCustomerInvoices } from "@/modules/sales/customer-invoice-service";
 import { CUSTOMER_INVOICE_SORT_FIELDS } from "@/modules/sales/schemas";
+import { PaymentDialog } from "@/modules/shared/components/payment-dialog";
 import { InvoiceStatusBadge } from "@/modules/shared/components/status-badge";
+import { can } from "@/server/auth/permissions";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Customer Invoices" };
@@ -31,7 +36,7 @@ export default async function CustomerInvoicesPage({
 }: {
   searchParams: Promise<RawSearchParams>;
 }) {
-  await requirePermissionOrRedirect("transaction:view");
+  const actor = await requirePermissionOrRedirect("transaction:view");
   const resolved = await searchParams;
 
   const params = parseListParams({
@@ -43,6 +48,18 @@ export default async function CustomerInvoicesPage({
   });
 
   const { rows, total } = await listCustomerInvoices(params);
+
+  // Loaded once for the whole page rather than per row: the Pay dialog needs
+  // the cash and bank journals, and they are the same for every invoice.
+  const canPay = can(actor, "payment:post");
+  const paymentJournals = canPay
+    ? await listJournalOptions([JournalType.BANK, JournalType.CASH])
+    : [];
+  const journalOptions = paymentJournals.map((journal) => ({
+    id: journal.id,
+    label: `${journal.code} · ${journal.name}`,
+    method: (journal.type === JournalType.CASH ? "CASH" : "BANK") as "CASH" | "BANK",
+  }));
   const meta = buildPageMeta(params, total);
   const isFiltered = Boolean(params.search) || Object.keys(params.filters).length > 0;
 
@@ -144,6 +161,10 @@ export default async function CustomerInvoicesPage({
 
               <TableBody>
                 {rows.map((invoice) => {
+                  const isCollectable =
+                    invoice.status === InvoiceStatus.POSTED ||
+                    invoice.status === InvoiceStatus.PARTIALLY_PAID;
+
                   const isOverdue =
                     invoice.dueDate !== null &&
                     invoice.dueDate.getTime() < today.getTime() &&
@@ -182,10 +203,26 @@ export default async function CustomerInvoicesPage({
                       <TableCell className="tabular text-right font-medium">
                         {invoice.amountResidual}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`${PATHNAME}/${invoice.id}`}>View</Link>
-                        </Button>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          {canPay && isCollectable ? (
+                            <PaymentDialog
+                              action={receiveInvoicePaymentAction.bind(null, invoice.id)}
+                              documentNumber={invoice.number}
+                              partnerName={invoice.customerName}
+                              direction="receive"
+                              amountResidual={invoice.amountResidual}
+                              triggerLabel="Pay"
+                              title="Invoice Payment"
+                              currencyNote="Records money received"
+                              journals={journalOptions}
+                            />
+                          ) : null}
+
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`${PATHNAME}/${invoice.id}`}>View</Link>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

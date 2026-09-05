@@ -89,6 +89,7 @@ export const receivePaymentSchema = z.object({
   paymentDate: dateString("Payment date"),
   amount: decimalString("Amount", { scale: 2, allowZero: false }),
   reference: optionalText("Reference", 80),
+  note: optionalText("Note", 500),
 });
 
 export type ReceivePaymentInput = z.infer<typeof receivePaymentSchema>;

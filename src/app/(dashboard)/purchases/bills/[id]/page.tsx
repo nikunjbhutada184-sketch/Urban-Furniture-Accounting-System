@@ -69,8 +69,10 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
           <PaymentDialog
             action={registerBillPaymentAction.bind(null, bill.id)}
             documentNumber={bill.number}
-            triggerLabel="Register payment"
-            title="Register payment"
+            partnerName={bill.vendor.name}
+            direction="send"
+            triggerLabel="Pay"
+            title="Bill Payment"
             currencyNote="Records money paid out"
             amountResidual={toAmountString(bill.amountResidual)}
             journals={paymentJournals.map((journal) => ({

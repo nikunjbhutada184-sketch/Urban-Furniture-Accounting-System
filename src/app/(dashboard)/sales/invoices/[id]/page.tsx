@@ -69,9 +69,11 @@ export default async function CustomerInvoicePage({ params }: { params: Promise<
           <PaymentDialog
             action={receiveInvoicePaymentAction.bind(null, invoice.id)}
             documentNumber={invoice.number}
+            partnerName={invoice.customer.name}
+            direction="receive"
             amountResidual={toAmountString(invoice.amountResidual)}
-            triggerLabel="Receive payment"
-            title="Receive payment"
+            triggerLabel="Pay"
+            title="Invoice Payment"
             currencyNote="Records money received"
             journals={paymentJournals.map((journal) => ({
               id: journal.id,

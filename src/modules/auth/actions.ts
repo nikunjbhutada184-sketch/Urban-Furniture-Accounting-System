@@ -8,18 +8,19 @@ import { signIn, signOut } from "@/server/auth";
  * Sign-in / sign-out server actions.
  *
  * Errors are returned as form state rather than thrown, and are deliberately
- * vague: "invalid email or password" never reveals whether the account exists.
+ * vague: "Invalid Login Id or Password" never reveals whether the account
+ * exists, so the form cannot be used to enumerate users.
  */
 
 const signInSchema = z.object({
-  email: z.string().min(1, "Email is required.").email("Enter a valid email address."),
+  loginId: z.string().trim().min(1, "Login id is required.").max(160),
   password: z.string().min(1, "Password is required."),
   callbackUrl: z.string().optional(),
 });
 
 export type SignInState = {
   error?: string;
-  fieldErrors?: { email?: string; password?: string };
+  fieldErrors?: { loginId?: string; password?: string };
 };
 
 export async function signInAction(
@@ -27,7 +28,7 @@ export async function signInAction(
   formData: FormData,
 ): Promise<SignInState> {
   const parsed = signInSchema.safeParse({
-    email: formData.get("email"),
+    loginId: formData.get("loginId"),
     password: formData.get("password"),
     callbackUrl: formData.get("callbackUrl") ?? undefined,
   });
@@ -36,25 +37,25 @@ export async function signInAction(
     const flattened = parsed.error.flatten().fieldErrors;
     return {
       fieldErrors: {
-        email: flattened.email?.[0],
+        loginId: flattened.loginId?.[0],
         password: flattened.password?.[0],
       },
     };
   }
 
-  const { email, password, callbackUrl } = parsed.data;
+  const { loginId, password, callbackUrl } = parsed.data;
 
   try {
     // `signIn` throws a redirect on success, which Next.js handles.
     await signIn("credentials", {
-      email,
+      loginId,
       password,
       redirectTo: callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/",
     });
     return {};
   } catch (error) {
     if (error instanceof AuthError) {
-      return { error: "Invalid email or password." };
+      return { error: "Invalid Login Id or Password." };
     }
     // Redirects are signalled by a thrown error; let them propagate.
     throw error;

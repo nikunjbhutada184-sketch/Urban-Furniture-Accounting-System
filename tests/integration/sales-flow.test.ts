@@ -154,6 +154,7 @@ describeWithDb("sales workflow (database)", () => {
         paymentDate: new Date("2026-04-20T00:00:00Z"),
         amount: "26550.00",
         reference: "UTR-123456",
+        note: null,
       }),
     );
 
@@ -186,6 +187,7 @@ describeWithDb("sales workflow (database)", () => {
         paymentDate: new Date("2026-04-18T00:00:00Z"),
         amount: "5000.00",
         reference: null,
+        note: null,
       }),
     );
 
@@ -201,6 +203,7 @@ describeWithDb("sales workflow (database)", () => {
         paymentDate: new Date("2026-04-19T00:00:00Z"),
         amount: "5620.00",
         reference: null,
+        note: null,
       }),
     );
 
@@ -232,6 +235,7 @@ describeWithDb("sales workflow (database)", () => {
           paymentDate: new Date("2026-04-20T00:00:00Z"),
           amount: "9999.00",
           reference: null,
+          note: null,
         }),
       ),
     ).rejects.toThrow(OverAllocationError);
@@ -289,6 +293,7 @@ describeWithDb("sales workflow (database)", () => {
           paymentDate: new Date("2026-04-20T00:00:00Z"),
           amount: "100.00",
           reference: null,
+          note: null,
         }),
       ),
     ).rejects.toThrow(/has not been posted/);
@@ -363,8 +368,7 @@ describeWithDb("sales workflow (database)", () => {
       0,
     );
 
-    const signedLedger =
-      Number(ledgerBalance) - Number((ledger._sum.credit ?? 0).toString());
+    const signedLedger = Number(ledgerBalance) - Number((ledger._sum.credit ?? 0).toString());
 
     // The ledger's receivable balance equals the sum of unpaid invoices.
     expect(signedLedger.toFixed(2)).toBe(documentOutstanding.toFixed(2));

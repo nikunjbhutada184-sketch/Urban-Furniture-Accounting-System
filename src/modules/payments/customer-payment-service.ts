@@ -115,6 +115,7 @@ export async function receiveCustomerInvoicePayment(
       amount,
       amountUnallocated: 0,
       reference: input.reference,
+      notes: input.note,
       createdById: context.userId ?? null,
     },
   });

@@ -34,13 +34,18 @@ Run the app:
 npm run dev
 ```
 
-Development logins created by the seed (change them before any real deployment):
+Development logins created by the seed (change them before any real deployment).
+Sign in with the **login id**, not the email — though the email is accepted too:
 
-| Role       | Email                            | Password       |
-| ---------- | -------------------------------- | -------------- |
-| ADMIN      | `admin@urbanfurniture.test`      | `ChangeMe!123` |
-| ACCOUNTANT | `accountant@urbanfurniture.test` | `ChangeMe!123` |
-| CONTACT    | `nimesh.pathak@example.test`     | `ChangeMe!123` |
+| Role       | Login id     | Email                            | Password       |
+| ---------- | ------------ | -------------------------------- | -------------- |
+| ADMIN      | `ufowner`    | `admin@urbanfurniture.test`      | `ChangeMe!123` |
+| ACCOUNTANT | `ufaccounts` | `accountant@urbanfurniture.test` | `ChangeMe!123` |
+| CONTACT    | `nimeshp`    | `nimesh.pathak@example.test`     | `ChangeMe!123` |
+
+New accounts are created two ways: an administrator at **Users → Create User**
+(any role), or self-service at **/signup**, which only ever creates a portal
+(invoicing) user.
 
 ## Scripts
 

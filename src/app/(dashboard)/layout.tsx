@@ -1,3 +1,4 @@
+import { visibleMenu } from "@/components/app-shell/menu-model";
 import { NAV_SECTIONS } from "@/components/app-shell/nav-items";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
@@ -24,6 +25,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     items: section.items.filter((item) => can(actor, item.permission)),
   })).filter((section) => section.items.length > 0);
 
+  // The same permission check, applied to the four-column menu in the top bar.
+  const menu = visibleMenu((permission) => can(actor, permission));
+
   return (
     <div className="bg-ground min-h-screen p-3 lg:p-5">
       <div className="shell mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-[1680px] gap-0 overflow-hidden rounded-3xl lg:min-h-[calc(100vh-2.5rem)]">
@@ -40,6 +44,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar
+            menu={menu}
             name={session?.user?.name ?? "User"}
             email={session?.user?.email ?? ""}
             role={actor.role}

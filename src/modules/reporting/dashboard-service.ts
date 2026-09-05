@@ -1,11 +1,7 @@
 import { AccountKind, EntryStatus, InvoiceStatus } from "@prisma/client";
 import { type DbClient, prisma } from "@/server/db/prisma";
 import { ZERO, add, subtract, toAmountString, toMoney } from "@/server/money";
-import {
-  type ReportPeriod,
-  getBalanceSheet,
-  getProfitAndLoss,
-} from "./report-service";
+import { type ReportPeriod, getBalanceSheet, getProfitAndLoss } from "./report-service";
 
 /**
  * Dashboard figures.
@@ -28,11 +24,7 @@ export interface DashboardOverview {
 }
 
 /** Sum of the current balance on every account of a given kind. */
-async function balanceForKinds(
-  client: DbClient,
-  kinds: AccountKind[],
-  to: Date,
-): Promise<string> {
+async function balanceForKinds(client: DbClient, kinds: AccountKind[], to: Date): Promise<string> {
   const accounts = await client.ledgerAccount.findMany({
     where: { kind: { in: kinds } },
     select: { id: true },
@@ -311,4 +303,98 @@ export async function getActiveBudgets(
 export async function getLedgerHealth(period: ReportPeriod, client: DbClient = prisma) {
   const balanceSheet = await getBalanceSheet(period, client);
   return { isBalanced: balanceSheet.isBalanced, difference: balanceSheet.difference };
+}
+
+// ---------------------------------------------------------------------------
+// Quick access tiles
+// ---------------------------------------------------------------------------
+
+export interface DocumentCounts {
+  all: number;
+  confirmed: number;
+  draft: number;
+}
+
+export interface BudgetSummary {
+  /** Budgets whose period overlaps the report period and are not cancelled. */
+  count: number;
+  committed: string;
+  achieved: string;
+}
+
+export interface QuickAccessSummary {
+  sales: DocumentCounts;
+  purchase: DocumentCounts;
+  budget: BudgetSummary;
+}
+
+/**
+ * The counts behind the dashboard's quick-access cards.
+ *
+ * Every number is a `count` or a sum over real rows -- there is no illustrative
+ * data here, so an empty database shows zeros rather than a plausible-looking
+ * fiction.
+ */
+export async function getQuickAccessSummary(
+  period: ReportPeriod,
+  client: DbClient = prisma,
+): Promise<QuickAccessSummary> {
+  const overlapsPeriod = { orderDate: { gte: period.from, lte: period.to } };
+
+  const [salesGroups, purchaseGroups, budgets] = await Promise.all([
+    client.salesOrder.groupBy({
+      by: ["status"],
+      where: overlapsPeriod,
+      _count: { _all: true },
+    }),
+    client.purchaseOrder.groupBy({
+      by: ["status"],
+      where: overlapsPeriod,
+      _count: { _all: true },
+    }),
+    client.budget.findMany({
+      where: {
+        status: { not: "CANCELLED" },
+        periodStart: { lte: period.to },
+        periodEnd: { gte: period.from },
+      },
+      select: { lines: { select: { committedAmount: true, achievedAmount: true } } },
+    }),
+  ]);
+
+  /**
+   * "All" deliberately excludes cancelled orders: a cancelled document is not
+   * work in progress, and counting it would make the tile disagree with the
+   * list it links to.
+   */
+  function summarise(groups: { status: string; _count: { _all: number } }[]): DocumentCounts {
+    const countFor = (status: string) =>
+      groups.find((group) => group.status === status)?._count._all ?? 0;
+
+    const draft = countFor("DRAFT");
+    const confirmed = countFor("CONFIRMED");
+    const completed = countFor("INVOICED") + countFor("BILLED");
+
+    return { all: draft + confirmed + completed, confirmed, draft };
+  }
+
+  let committed = ZERO;
+  let achieved = ZERO;
+
+  for (const budget of budgets) {
+    for (const line of budget.lines) {
+      committed = add(committed, line.committedAmount);
+      achieved = add(achieved, line.achievedAmount);
+    }
+  }
+
+  return {
+    sales: summarise(salesGroups),
+    purchase: summarise(purchaseGroups),
+    budget: {
+      count: budgets.length,
+      committed: toAmountString(committed),
+      achieved: toAmountString(achieved),
+    },
+  };
 }

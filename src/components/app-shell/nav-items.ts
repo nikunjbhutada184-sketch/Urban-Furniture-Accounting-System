@@ -167,7 +167,6 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/users",
         icon: "UserCog",
         permission: "user:manage",
-        comingSoon: true,
       },
       {
         label: "Company Settings",

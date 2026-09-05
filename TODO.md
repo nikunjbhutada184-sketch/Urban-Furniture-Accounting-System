@@ -135,7 +135,8 @@ flows differ only in their services and labels — not in duplicated UI.
 - [x] List / Kanban toggle driven by `?view=`, preserving search, filter and sort
 - [x] Contact kanban (image, name, email, mobile)
 - [x] Product kanban (image, name, sales price, cost)
-- [ ] Budget report kanban — arrives with the budget module in Phase 8
+- [x] Budget kanban (period, status, achieved/balance donut), plus a Pie Chart
+      column on both the budget list and the Budget Report
 
 ---
 
@@ -173,7 +174,9 @@ flows differ only in their services and labels — not in duplicated UI.
 - [ ] Contact portal: own invoices/bills, pay online, download PDF
 - [ ] Budget CRUD, revisions, committed/achieved recomputation
 - [ ] Company settings, fiscal year, accounting lock date
-- [ ] User management (ADMIN)
+- [x] User management (ADMIN): create user with role, login-id/email uniqueness,
+      password policy, deactivate/reactivate
+- [x] Public sign-up (portal users only) and a login form keyed on login id
 - [ ] Audit log viewer
 - [ ] Dashboard: receivables, payables, cash position, recent activity
 - [ ] Full Playwright suite over all walkthroughs

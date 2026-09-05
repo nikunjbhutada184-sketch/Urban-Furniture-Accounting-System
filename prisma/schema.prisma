@@ -171,6 +171,10 @@ model User {
   id   String @id @default(cuid())
   name String
 
+  /// The identifier typed on the sign-in form. Case-insensitive by
+  /// convention: always stored and compared lower-cased.
+  loginId String @unique
+
   email String @unique
 
   /// bcrypt hash for the credentials provider. Null for users who only sign in

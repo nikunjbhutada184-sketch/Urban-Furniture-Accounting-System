@@ -17,6 +17,7 @@ import {
 import { type RawSearchParams } from "@/lib/list-params";
 import { IncomeExpenseChart } from "@/modules/reporting/components/income-expense-chart";
 import { PeriodPicker } from "@/modules/reporting/components/period-picker";
+import { QuickAccessCard } from "@/modules/reporting/components/quick-access";
 import {
   getActiveBudgets,
   getDashboardOverview,
@@ -24,6 +25,7 @@ import {
   getMonthlySeries,
   getOpenBills,
   getOpenInvoices,
+  getQuickAccessSummary,
   getRecentActivity,
 } from "@/modules/reporting/dashboard-service";
 import { parsePeriod } from "@/modules/reporting/report-service";
@@ -49,15 +51,17 @@ export default async function DashboardPage({
   const resolved = await searchParams;
   const period = parsePeriod(resolved);
 
-  const [overview, monthly, activity, invoices, bills, budgets, health] = await Promise.all([
-    getDashboardOverview(period),
-    getMonthlySeries(period),
-    getRecentActivity(),
-    getOpenInvoices(),
-    getOpenBills(),
-    getActiveBudgets(period),
-    getLedgerHealth(period),
-  ]);
+  const [overview, monthly, activity, invoices, bills, budgets, health, quickAccess] =
+    await Promise.all([
+      getDashboardOverview(period),
+      getMonthlySeries(period),
+      getRecentActivity(),
+      getOpenInvoices(),
+      getOpenBills(),
+      getActiveBudgets(period),
+      getLedgerHealth(period),
+      getQuickAccessSummary(period),
+    ]);
 
   const firstName = (session?.user?.name ?? "there").split(" ")[0];
 
@@ -96,6 +100,64 @@ export default async function DashboardPage({
           </span>
         </p>
       ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <QuickAccessCard
+          title="Sales"
+          action={{ label: "New", href: "/sales/orders/new" }}
+          tiles={[
+            { label: "All", value: String(quickAccess.sales.all), href: "/sales/orders" },
+            {
+              label: "Confirmed",
+              value: String(quickAccess.sales.confirmed),
+              href: "/sales/orders?status=CONFIRMED",
+            },
+            {
+              label: "Draft",
+              value: String(quickAccess.sales.draft),
+              href: "/sales/orders?status=DRAFT",
+            },
+          ]}
+        />
+
+        <QuickAccessCard
+          title="Purchase"
+          action={{ label: "New", href: "/purchases/orders/new" }}
+          tiles={[
+            { label: "All", value: String(quickAccess.purchase.all), href: "/purchases/orders" },
+            {
+              label: "Confirmed",
+              value: String(quickAccess.purchase.confirmed),
+              href: "/purchases/orders?status=CONFIRMED",
+            },
+            {
+              label: "Draft",
+              value: String(quickAccess.purchase.draft),
+              href: "/purchases/orders?status=DRAFT",
+            },
+          ]}
+        />
+
+        <QuickAccessCard
+          title="Budget Reports"
+          action={{ label: "Report", href: "/reports/budget" }}
+          tiles={[
+            { label: "Budgets", value: String(quickAccess.budget.count), href: "/budgets" },
+            {
+              label: "Committed",
+              value: quickAccess.budget.committed,
+              money: true,
+              href: "/reports/budget",
+            },
+            {
+              label: "Achieved",
+              value: quickAccess.budget.achieved,
+              money: true,
+              href: "/reports/budget",
+            },
+          ]}
+        />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -244,9 +306,7 @@ export default async function DashboardPage({
                           >
                             {invoice.number}
                           </Link>
-                          <div className="text-muted-foreground text-xs">
-                            {invoice.contactName}
-                          </div>
+                          <div className="text-muted-foreground text-xs">{invoice.contactName}</div>
                         </TableCell>
                         <TableCell>
                           {invoice.isOverdue ? (
@@ -364,8 +424,8 @@ export default async function DashboardPage({
       ) : null}
 
       <p className="text-muted-foreground text-xs">
-        Signed in as {actor.role}. Every figure is computed from posted journal entries at
-        request time — nothing on this page is stored or hardcoded.
+        Signed in as {actor.role}. Every figure is computed from posted journal entries at request
+        time — nothing on this page is stored or hardcoded.
       </p>
     </div>
   );

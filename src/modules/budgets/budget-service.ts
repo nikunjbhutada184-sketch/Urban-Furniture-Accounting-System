@@ -89,8 +89,11 @@ export interface BudgetListRow {
   responsibleName: string | null;
   lineCount: number;
   planned: string;
+  committed: string;
   achieved: string;
   achievedPercent: number | null;
+  /** Planned less achieved, floored at zero -- the "balance" slice of the pie. */
+  toAchieve: string;
   revisionOfName: string | null;
 }
 
@@ -115,18 +118,24 @@ export async function listBudgets(
       status: true,
       responsibleUser: { select: { name: true } },
       revisionOf: { select: { name: true } },
-      lines: { select: { plannedAmount: true, achievedAmount: true } },
+      lines: {
+        select: { plannedAmount: true, committedAmount: true, achievedAmount: true },
+      },
     },
   });
 
   return budgets.map((budget) => {
     let planned = ZERO;
+    let committed = ZERO;
     let achieved = ZERO;
 
     for (const line of budget.lines) {
       planned = add(planned, line.plannedAmount);
+      committed = add(committed, line.committedAmount);
       achieved = add(achieved, line.achievedAmount);
     }
+
+    const remaining = subtract(planned, achieved);
 
     return {
       id: budget.id,
@@ -137,10 +146,12 @@ export async function listBudgets(
       responsibleName: budget.responsibleUser?.name ?? null,
       lineCount: budget.lines.length,
       planned: toAmountString(planned),
+      committed: toAmountString(committed),
       achieved: toAmountString(achieved),
       achievedPercent: planned.isZero()
         ? null
         : Number(achieved.dividedBy(planned).times(100).toFixed(1)),
+      toAchieve: toAmountString(remaining.isNegative() ? ZERO : remaining),
       revisionOfName: budget.revisionOf?.name ?? null,
     };
   });
@@ -592,7 +603,10 @@ export async function recomputeBudgetProgress(tx: DbClient, id: string): Promise
       tx.purchaseOrderLine.aggregate({
         where: {
           analyticAccountId: line.analyticAccountId,
-          order: { status: "CONFIRMED", orderDate: { gte: budget.periodStart, lte: budget.periodEnd } },
+          order: {
+            status: "CONFIRMED",
+            orderDate: { gte: budget.periodStart, lte: budget.periodEnd },
+          },
         },
         _sum: { subtotal: true },
       }),
@@ -600,7 +614,10 @@ export async function recomputeBudgetProgress(tx: DbClient, id: string): Promise
       tx.salesOrderLine.aggregate({
         where: {
           analyticAccountId: line.analyticAccountId,
-          order: { status: "CONFIRMED", orderDate: { gte: budget.periodStart, lte: budget.periodEnd } },
+          order: {
+            status: "CONFIRMED",
+            orderDate: { gte: budget.periodStart, lte: budget.periodEnd },
+          },
         },
         _sum: { subtotal: true },
       }),
@@ -610,8 +627,7 @@ export async function recomputeBudgetProgress(tx: DbClient, id: string): Promise
     const debit = toMoney(totals?._sum.debit ?? 0);
     const credit = toMoney(totals?._sum.credit ?? 0);
 
-    const achieved =
-      line.type === "INCOME" ? subtract(credit, debit) : subtract(debit, credit);
+    const achieved = line.type === "INCOME" ? subtract(credit, debit) : subtract(debit, credit);
 
     const committed =
       line.type === "INCOME"

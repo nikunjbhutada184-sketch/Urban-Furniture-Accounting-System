@@ -17,7 +17,10 @@ import { authConfig } from "@/server/auth/auth.config";
 const { auth } = NextAuth(authConfig);
 
 /** Routes reachable without a session. */
-const PUBLIC_PATHS = ["/login", "/api/auth"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/api/auth"];
+
+/** The subset of public routes a signed-in user has no use for. */
+const SIGNED_OUT_ONLY_PATHS = ["/login", "/signup"];
 
 /** Route prefixes only the back office (ADMIN / ACCOUNTANT) may load. */
 const BACK_OFFICE_PREFIXES = [
@@ -72,7 +75,7 @@ export default auth((request) => {
     // A session carrying an unrecognised role must be allowed to REACH /login:
     // sending it to a role home would bounce it straight back here, and the
     // browser would give up with "too many redirects".
-    if (user && isKnownRole(role) && pathname === "/login") {
+    if (user && isKnownRole(role) && startsWithAny(pathname, SIGNED_OUT_ONLY_PATHS)) {
       return NextResponse.redirect(new URL(homePathForRole(role), request.nextUrl));
     }
     return NextResponse.next();

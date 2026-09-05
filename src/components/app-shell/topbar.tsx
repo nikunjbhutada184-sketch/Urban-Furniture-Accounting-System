@@ -1,5 +1,7 @@
 import { Bell, Search } from "lucide-react";
 import { type UserRole } from "@prisma/client";
+import { AppMenu } from "@/components/app-shell/app-menu";
+import { type MenuColumn } from "@/components/app-shell/menu-model";
 import { UserMenu } from "@/components/app-shell/user-menu";
 
 /**
@@ -9,11 +11,13 @@ import { UserMenu } from "@/components/app-shell/user-menu";
  * global search needs an index to be worth shipping.
  */
 export function Topbar({
+  menu,
   name,
   email,
   role,
   canManageSettings,
 }: {
+  menu: MenuColumn[];
   name: string;
   email: string;
   role: UserRole;
@@ -28,7 +32,9 @@ export function Topbar({
         <span className="text-sm font-semibold">Urban Furniture</span>
       </div>
 
-      <div className="hidden flex-1 lg:block" />
+      <div className="hidden min-w-0 flex-1 lg:block">
+        <AppMenu columns={menu} />
+      </div>
 
       <div className="flex items-center gap-2">
         <button
@@ -47,12 +53,7 @@ export function Topbar({
           <Bell className="size-4" aria-hidden />
         </button>
 
-        <UserMenu
-          name={name}
-          email={email}
-          role={role}
-          canManageSettings={canManageSettings}
-        />
+        <UserMenu name={name} email={email} role={role} canManageSettings={canManageSettings} />
       </div>
     </header>
   );
