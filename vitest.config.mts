@@ -12,7 +12,6 @@ export default defineConfig({
     // safe to run anywhere. Integration tests have their own config.
     include: ["tests/unit/**/*.test.ts", "tests/unit/**/*.test.tsx", "src/**/*.test.ts"],
     exclude: ["e2e/**", "tests/integration/**", "node_modules/**", ".next/**"],
-    environmentMatchGlobs: [["tests/**/*.test.tsx", "jsdom"]],
     coverage: {
       provider: "v8",
       reportsDirectory: "./coverage",

@@ -6,10 +6,22 @@
  */
 export { buildEntry, checkBalance } from "./balance";
 export {
+  AccountingService,
+  assertJournalEntryValid,
+  createJournalEntry,
+  getAccountBalance,
+  getAccountLedger,
+  postJournalEntry,
+  validateJournalEntry,
+} from "./accounting-service";
+export type { ValidationResult } from "./accounting-service";
+// NOTE: `postJournalEntry` is deliberately re-exported from ./accounting-service
+// (which validates accounts first), not from ./posting-service. Nothing outside
+// the accounting core should call the unvalidated posting primitive.
+export {
   assertPeriodOpen,
   createDraftEntry,
   postDraftEntry,
-  postJournalEntry,
   reverseJournalEntry,
   toAccountingDate,
 } from "./posting-service";

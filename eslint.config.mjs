@@ -43,7 +43,9 @@ const eslintConfig = defineConfig([
         {
           paths: [
             {
+              // Enums and generated types are fine in the UI; the client is not.
               name: "@prisma/client",
+              importNames: ["PrismaClient", "Prisma"],
               message:
                 "UI components must not talk to the database. Call a service in src/modules/*/ or src/server/ instead.",
             },

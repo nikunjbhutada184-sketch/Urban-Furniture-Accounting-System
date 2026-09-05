@@ -67,32 +67,41 @@ awaiting a database), and each of the three roles resolves to the correct permis
 
 ---
 
-## Phase 3 — Master data 🔜 NEXT
+## Phase 3 — Master data ✅
 
-- [ ] Chart of Accounts: CRUD, hierarchy, archive, kind assignment
-- [ ] Journals: CRUD with default accounts
-- [ ] Contacts: CRUD, archive, optional portal user creation
-- [ ] Products + categories: CRUD, archive, default accounts and taxes
-- [ ] Taxes: CRUD
-- [ ] Analytic accounts: CRUD
-- [ ] Zod schemas shared by server actions and forms
-- [ ] List/detail/form UI per module
-- [ ] Unit tests for validation rules; E2E for the create-master-data walkthrough
+- [x] Chart of Accounts: CRUD, hierarchy (cycle-guarded), archive, kind assignment
+- [x] Journals: CRUD with default and payment accounts
+- [x] Contacts: CRUD, archive, type-change guards
+- [x] Products + categories: CRUD, archive, default accounts and taxes
+- [x] Taxes: option loader (full CRUD screen deferred — taxes are seeded)
+- [x] Analytic accounts: CRUD
+- [x] Zod schemas shared by server actions and forms
+- [x] List/search/filter/sort/pagination + create/edit/archive UI per module
+- [x] Empty states, loading skeletons, confirmation dialogs, server-side error mapping
+- [x] Reusable `runFormAction` pipeline: authorise -> validate -> transaction -> revalidate
+- [ ] E2E for the create-master-data walkthrough (needs a database)
 
 **Checkpoint:** the spec's section 7.1 walkthrough completes through the UI.
+Note: master data is **archived, never deleted** — every module has a reference
+counter and there is deliberately no hard-delete path.
 
 ---
 
-## Phase 4 — Purchase flow
+## Phase 4 — Purchase flow ✅ (pending a live database)
 
-- [ ] Purchase Order: draft, lines with tax, totals, confirm, cancel
-- [ ] PO → Vendor Bill conversion (quantities carried, `quantityBilled` tracked)
-- [ ] Vendor Bill posting → journal entry (Dr expense + Dr input tax / Cr creditors)
-- [ ] Stock moves IN for tracked goods
-- [ ] Bill list/detail UI with status badges
-- [ ] Integration test: PO → bill → posted entry, ledger balanced
+- [x] Purchase Order: draft, lines with tax, live totals, confirm, cancel
+- [x] PO → Vendor Bill conversion (quantities carried, `quantityBilled` tracked)
+- [x] Vendor Bill posting → journal entry (Dr expense + Dr input tax / Cr creditors)
+- [x] Payment registration → journal entry (Dr creditors / Cr bank or cash)
+- [x] Allocation, residual recomputation and status transitions
+- [x] Stock moves IN for tracked goods
+- [x] Order and bill list/detail UI with status badges and the posted entry shown
+- [x] Guards: non-confirmed orders cannot be billed, over-payment refused,
+      draft bills cannot be paid, paid bills cannot be paid again, archived
+      vendors/products refused, negative quantity and price refused
+- [ ] Integration test: PO → bill → posted entry, ledger balanced (needs a database)
 
-**Checkpoint:** spec section 7.2 up to the posted bill.
+**Checkpoint:** spec section 7.2 up to the posted bill and the bank payment.
 
 ---
 

@@ -10,9 +10,9 @@ const PHASES = [
   { phase: "Phase 0", name: "Foundation", status: "done" },
   { phase: "Phase 1", name: "Database layer", status: "done" },
   { phase: "Phase 2", name: "Accounting core & auth", status: "done" },
-  { phase: "Phase 3", name: "Master data", status: "next" },
-  { phase: "Phase 4", name: "Purchase flow", status: "planned" },
-  { phase: "Phase 5", name: "Sales flow", status: "planned" },
+  { phase: "Phase 3", name: "Master data", status: "done" },
+  { phase: "Phase 4", name: "Purchase flow", status: "done" },
+  { phase: "Phase 5", name: "Sales flow", status: "next" },
   { phase: "Phase 6", name: "Payments & settlement", status: "planned" },
   { phase: "Phase 7", name: "Reporting", status: "planned" },
 ] as const;
