@@ -383,6 +383,9 @@ model Product {
   purchaseTaxId String?
   purchaseTax   Tax?    @relation("ProductPurchaseTax", fields: [purchaseTaxId], references: [id])
 
+  /// Product photo, shown on the kanban view and the product form.
+  imageUrl String?
+
   /// GOODS only: generate stock moves when bills/invoices are posted.
   trackInventory Boolean @default(false)
 

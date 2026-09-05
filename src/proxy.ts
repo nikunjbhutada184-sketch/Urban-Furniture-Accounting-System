@@ -47,6 +47,16 @@ function startsWithAny(pathname: string, prefixes: string[]): boolean {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+/**
+ * Roles this build understands. Declared inline rather than imported so the
+ * proxy stays free of any Prisma import on the Edge runtime.
+ */
+const KNOWN_ROLES = ["ADMIN", "ACCOUNTANT", "CONTACT"] as const;
+
+function isKnownRole(role: UserRole | undefined): role is UserRole {
+  return typeof role === "string" && (KNOWN_ROLES as readonly string[]).includes(role);
+}
+
 function homePathForRole(role: UserRole | undefined): string {
   return role === "CONTACT" ? "/portal" : "/dashboard";
 }
@@ -57,8 +67,12 @@ export default auth((request) => {
   const role = user?.role;
 
   if (startsWithAny(pathname, PUBLIC_PATHS)) {
-    // Already signed in? Skip the login page.
-    if (user && pathname === "/login") {
+    // Already signed in with a usable role? Skip the login page.
+    //
+    // A session carrying an unrecognised role must be allowed to REACH /login:
+    // sending it to a role home would bounce it straight back here, and the
+    // browser would give up with "too many redirects".
+    if (user && isKnownRole(role) && pathname === "/login") {
       return NextResponse.redirect(new URL(homePathForRole(role), request.nextUrl));
     }
     return NextResponse.next();

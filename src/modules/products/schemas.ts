@@ -4,6 +4,7 @@ import {
   decimalString,
   optionalId,
   optionalText,
+  optionalUrlOrPath,
   requiredText,
 } from "@/modules/shared/zod-helpers";
 
@@ -52,6 +53,7 @@ export const productInputSchema = z
     expenseAccountId: optionalId(),
     salesTaxId: optionalId(),
     purchaseTaxId: optionalId(),
+    imageUrl: optionalUrlOrPath("Product photo"),
     trackInventory: z
       .union([z.literal("on"), z.literal("true"), z.literal("false"), z.undefined()])
       .transform((value) => value === "on" || value === "true"),

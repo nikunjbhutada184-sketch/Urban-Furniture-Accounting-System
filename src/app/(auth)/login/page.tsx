@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
 import { redirect } from "next/navigation";
+import { isKnownRole } from "@/server/auth/permissions";
 import { getCurrentActor, homePathForRole } from "@/server/auth/session";
 import { LoginForm } from "./login-form";
 
@@ -10,8 +11,12 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ callbackUrl?: string }>;
 }) {
+  // Only send a *usable* session on to its home. A session carrying a role
+  // this build does not recognise must be allowed to sign in again here --
+  // redirecting it would bounce straight back and the browser would report
+  // "too many redirects".
   const actor = await getCurrentActor();
-  if (actor) redirect(homePathForRole(actor.role));
+  if (actor && isKnownRole(actor.role)) redirect(homePathForRole(actor.role));
 
   const { callbackUrl } = await searchParams;
 
