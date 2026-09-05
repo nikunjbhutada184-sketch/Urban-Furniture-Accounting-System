@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type RawSearchParams } from "@/lib/list-params";
+import { ReportPdfLink } from "@/modules/reporting/components/report-pdf-link";
 import {
   ReconciliationBanner,
   ReportShell,
@@ -125,6 +126,7 @@ export default async function BalanceSheetPage({
       title="Balance Sheet"
       description={`Assets, liabilities and capital as at ${period.to.toISOString().slice(0, 10)}.`}
       period={period}
+      actions={<ReportPdfLink href="/reports/balance-sheet/pdf" period={period} />}
     >
       <ReconciliationBanner
         isBalanced={report.isBalanced}

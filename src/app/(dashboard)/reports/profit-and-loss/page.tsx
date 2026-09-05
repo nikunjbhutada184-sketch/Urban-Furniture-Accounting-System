@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type RawSearchParams } from "@/lib/list-params";
+import { ReportPdfLink } from "@/modules/reporting/components/report-pdf-link";
 import { ReportShell } from "@/modules/reporting/components/report-shell";
 import {
   type ReportLine,
@@ -114,6 +115,7 @@ export default async function ProfitAndLossPage({
       title="Profit & Loss"
       description={`Income less expenses from ${period.from.toISOString().slice(0, 10)} to ${period.to.toISOString().slice(0, 10)}.`}
       period={period}
+      actions={<ReportPdfLink href="/reports/profit-and-loss/pdf" period={period} />}
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Total income" value={report.totalIncome} />

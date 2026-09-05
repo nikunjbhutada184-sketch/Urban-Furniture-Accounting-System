@@ -163,6 +163,8 @@ flows differ only in their services and labels — not in duplicated UI.
 - [ ] Partner ledger and ageing
 - [ ] Stock report
 - [ ] Report UI with period selector, drill-down and CSV export
+- [x] PDF download for Profit & Loss and Balance Sheet, rendered server-side from
+      the same report service the screen uses
 - [ ] Integration tests asserting Assets = Liabilities + Capital after real document flows
 
 **Checkpoint:** spec section 7.4 — reports reconcile to the ledger.
