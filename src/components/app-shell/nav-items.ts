@@ -49,6 +49,12 @@ export const NAV_SECTIONS: NavSection[] = [
         permission: "master:view",
       },
       {
+        label: "Inventory",
+        href: "/inventory",
+        icon: "Boxes",
+        permission: "master:view",
+      },
+      {
         label: "Chart of Accounts",
         href: "/accounts",
         icon: "BookOpen",
@@ -130,7 +136,6 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/budgets",
         icon: "Target",
         permission: "budget:view",
-        comingSoon: true,
       },
     ],
   },
