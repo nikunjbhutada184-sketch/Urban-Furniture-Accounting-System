@@ -133,6 +133,8 @@ enum AnalyticAccountType {
 enum BudgetStatus {
   DRAFT
   CONFIRMED
+  REVISED
+  CANCELLED
   CLOSED
 }
 
