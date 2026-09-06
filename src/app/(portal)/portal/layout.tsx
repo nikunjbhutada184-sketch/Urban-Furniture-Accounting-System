@@ -1,5 +1,8 @@
+import { PORTAL_NAV } from "@/components/app-shell/nav-items";
+import { PortalNav } from "@/components/app-shell/portal-nav";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { auth } from "@/server/auth";
+import { can } from "@/server/auth/permissions";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 
 /**
@@ -12,6 +15,10 @@ import { requirePermissionOrRedirect } from "@/server/auth/session";
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const actor = await requirePermissionOrRedirect("portal:view-own");
   const session = await auth();
+
+  // Filtered on the server, like the back-office sidebar: a link a portal user
+  // cannot follow never reaches the browser.
+  const nav = PORTAL_NAV.filter((item) => can(actor, item.permission));
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -33,6 +40,8 @@ export default async function PortalLayout({ children }: { children: React.React
           canManageSettings={false}
         />
       </header>
+
+      <PortalNav items={nav} />
 
       <main className="flex-1 p-4 lg:p-6">{children}</main>
     </div>

@@ -30,7 +30,9 @@ export const authConfig: NextAuthConfig = {
       if (user) {
         const authUser = user as { id?: string; role?: UserRole; contactId?: string | null };
         token.id = authUser.id ?? token.sub ?? "";
-        token.role = authUser.role;
+        // Keep whatever the token already had if the provider did not supply a
+        // role, rather than writing `undefined` into the session.
+        if (authUser.role) token.role = authUser.role;
         token.contactId = authUser.contactId ?? null;
       }
       return token;

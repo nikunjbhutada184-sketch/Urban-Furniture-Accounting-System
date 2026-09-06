@@ -4,7 +4,7 @@ import {
   optionalEmail,
   optionalId,
   optionalText,
-  optionalUrl,
+  optionalUrlOrPath,
   requiredText,
 } from "@/modules/shared/zod-helpers";
 
@@ -36,7 +36,7 @@ export const contactInputSchema = z.object({
   city: optionalText("City", 80),
   state: optionalText("State", 80),
   pincode: optionalText("Pincode", 16),
-  profileImage: optionalUrl("Profile image"),
+  profileImage: optionalUrlOrPath("Profile photo"),
   receivableAccountId: optionalId(),
   payableAccountId: optionalId(),
 });

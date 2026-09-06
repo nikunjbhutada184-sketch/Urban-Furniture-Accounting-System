@@ -1,10 +1,11 @@
 "use client";
 
-import { type Product, ProductType } from "@prisma/client";
+import { ProductType } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { Field, FormAlert, SubmitButton, fieldProps } from "@/components/forms/field";
+import { ImageUpload } from "@/components/forms/image-upload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,39 @@ export interface Option {
   label: string;
 }
 
+/**
+ * The product as this form needs it.
+ *
+ * Deliberately NOT the Prisma `Product`: prices are Decimal objects, which
+ * cannot cross the server/client boundary. Amounts arrive here already
+ * serialised to exact decimal strings.
+ */
+export interface ProductFormValues {
+  name: string;
+  sku: string;
+  type: ProductType;
+  salesPrice: string;
+  cost: string;
+  categoryId: string | null;
+  incomeAccountId: string | null;
+  expenseAccountId: string | null;
+  salesTaxId: string | null;
+  purchaseTaxId: string | null;
+  trackInventory: boolean;
+  imageUrl: string | null;
+}
+
+function initials(value: string): string {
+  return (
+    value
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
+}
+
 export function ProductForm({
   action,
   product,
@@ -33,7 +67,7 @@ export function ProductForm({
   submitLabel,
 }: {
   action: (state: ActionState, formData: FormData) => Promise<ActionState>;
-  product?: Product;
+  product?: ProductFormValues;
   categories: Option[];
   incomeAccounts: Option[];
   expenseAccounts: Option[];
@@ -43,6 +77,7 @@ export function ProductForm({
   const router = useRouter();
   const [state, formAction] = useActionState(action, IDLE_STATE);
   const [type, setType] = useState<string>(product?.type ?? ProductType.GOODS);
+  const [name, setName] = useState(product?.name ?? "");
 
   useEffect(() => {
     if (state.status === "success") {
@@ -64,10 +99,22 @@ export function ProductForm({
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
+            <ImageUpload
+              name="imageUrl"
+              label="Product photo"
+              hint="Shown on the kanban cards. PNG, JPEG, WebP or GIF, up to 2 MB."
+              defaultValue={previous.imageUrl ?? product?.imageUrl ?? ""}
+              fallback={initials(name || "Product")}
+              error={error("imageUrl")}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
             <Field name="name" label="Product name" error={error("name")} required>
               <Input
                 {...fieldProps("name", error("name"))}
-                defaultValue={previous.name ?? product?.name ?? ""}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
                 placeholder="e.g. Office Chair"
                 maxLength={160}
                 autoFocus
@@ -109,7 +156,7 @@ export function ProductForm({
           >
             <Input
               {...fieldProps("salesPrice", error("salesPrice"))}
-              defaultValue={previous.salesPrice ?? product?.salesPrice?.toString() ?? "0"}
+              defaultValue={previous.salesPrice ?? product?.salesPrice ?? "0"}
               inputMode="decimal"
               className="tabular"
               required
@@ -125,7 +172,7 @@ export function ProductForm({
           >
             <Input
               {...fieldProps("cost", error("cost"))}
-              defaultValue={previous.cost ?? product?.cost?.toString() ?? "0"}
+              defaultValue={previous.cost ?? product?.cost ?? "0"}
               inputMode="decimal"
               className="tabular"
               required

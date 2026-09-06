@@ -135,49 +135,60 @@ flows differ only in their services and labels — not in duplicated UI.
 - [x] List / Kanban toggle driven by `?view=`, preserving search, filter and sort
 - [x] Contact kanban (image, name, email, mobile)
 - [x] Product kanban (image, name, sales price, cost)
-- [ ] Budget report kanban — arrives with the budget module in Phase 8
+- [x] Budget kanban (period, status, achieved/balance donut), plus a Pie Chart
+      column on both the budget list and the Budget Report
 
 ---
 
-## Phase 6 — Payments & settlement
+## Phase 6 — Payments & settlement ✅
 
-- [ ] Payment registration (inbound/outbound, cash/bank)
-- [ ] Allocation against one or many bills/invoices, with over-allocation rejection
-- [ ] Payment posting → journal entry; residual and status recomputation
-- [ ] "Register payment" flow from a bill/invoice
-- [ ] Integration tests: partial payment, full payment, over-allocation rejected,
-      multi-document allocation
+- [x] Payment registration (inbound/outbound, cash/bank), standalone at `/payments/new`
+- [x] Allocation against one or many bills/invoices, with over-allocation rejection;
+      an unallocated remainder is held on the payment as an advance
+- [x] Payment posting → journal entry; residual and status recomputed from the
+      allocations rather than incremented
+- [x] "Pay" flow from a bill/invoice, and from the invoice list
+- [x] Integration tests: partial, full, over-allocation rejected, multi-document
+      allocation, another contact's document refused, whole-payment rollback
 
-**Checkpoint:** an invoice reaches `PAID` and the customer's receivable balance is zero.
-
----
-
-## Phase 7 — Reporting
-
-- [ ] Trial Balance
-- [ ] Balance Sheet (as-at date, current-period profit folded into Capital)
-- [ ] Profit & Loss (date range, optional analytic filter)
-- [ ] Budget Report (planned vs committed vs achieved vs variance)
-- [ ] General ledger / account statement with running balance
-- [ ] Partner ledger and ageing
-- [ ] Stock report
-- [ ] Report UI with period selector, drill-down and CSV export
-- [ ] Integration tests asserting Assets = Liabilities + Capital after real document flows
-
-**Checkpoint:** spec section 7.4 — reports reconcile to the ledger.
+**Checkpoint:** met — an invoice reaches `PAID` and the receivable clears.
 
 ---
 
-## Phase 8 — Portal, budgets & polish
+## Phase 7 — Reporting ✅
 
-- [ ] Contact portal: own invoices/bills, pay online, download PDF
-- [ ] Budget CRUD, revisions, committed/achieved recomputation
-- [ ] Company settings, fiscal year, accounting lock date
-- [ ] User management (ADMIN)
-- [ ] Audit log viewer
-- [ ] Dashboard: receivables, payables, cash position, recent activity
-- [ ] Full Playwright suite over all walkthroughs
-- [ ] Accessibility and responsive pass
+- [x] Trial Balance
+- [x] Balance Sheet (as-at date, current-period profit folded into Capital)
+- [x] Profit & Loss (date range)
+- [x] Budget Report (planned vs committed vs achieved vs variance), with a pie per line
+- [x] General ledger / account statement with running balance
+- [x] Partner ledger and ageing (five buckets, scoped so the portal can reuse them)
+- [x] Stock report
+- [x] Report UI with period selector, drill-down and CSV export
+- [x] PDF download for Profit & Loss and Balance Sheet, rendered server-side from
+      the same report service the screen uses
+- [x] Integration tests asserting Assets = Liabilities + Capital after real document flows
+
+**Checkpoint:** met — reports reconcile to the ledger.
+
+Not done: the optional analytic filter on Profit & Loss. `getProfitAndLoss`
+already accepts `analyticAccountId`; only the UI control is missing.
+
+---
+
+## Phase 8 — Portal, budgets & polish ✅
+
+- [x] Contact portal: own invoices and bills, pay online, download the invoice PDF
+- [x] Budget CRUD, revisions, committed/achieved recomputation
+- [x] Company settings, fiscal year, accounting lock date (which cannot move backwards)
+- [x] User management (ADMIN): create user with role, login-id/email uniqueness,
+      password policy, deactivate/reactivate
+- [x] Public sign-up (portal users only) and a login form keyed on login id
+- [x] Audit log viewer (read-only, filterable by record type and action)
+- [x] Dashboard: receivables, payables, cash position, recent activity
+- [x] Playwright suite: 56 tests across anonymous, back-office and portal roles
+- [x] Responsive pass: navigation drawer below `lg`, tables scroll in their own
+      container, portal tabs work at every width
 
 ---
 

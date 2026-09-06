@@ -44,6 +44,27 @@ export function optionalUrl(label: string) {
     .transform((value) => (value && value.length > 0 ? value : null));
 }
 
+/**
+ * An optional image location: either an absolute URL (hosted elsewhere) or a
+ * site-relative upload path such as `/uploads/<uuid>.png`.
+ *
+ * Rejects anything else, so a form cannot smuggle in `javascript:` or a
+ * traversal path.
+ */
+export function optionalUrlOrPath(label: string) {
+  return z
+    .union([z.literal(""), z.string().trim()])
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : null))
+    .refine(
+      (value) =>
+        value === null ||
+        /^\/uploads\/[A-Za-z0-9._-]+$/.test(value) ||
+        /^https?:\/\/\S+$/i.test(value),
+      { message: `${label} must be an uploaded image or a http(s) URL.` },
+    );
+}
+
 /** Optional foreign key: the form's "none" option and empty string become `null`. */
 export function optionalId() {
   return z

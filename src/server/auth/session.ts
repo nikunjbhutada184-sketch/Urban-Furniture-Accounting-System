@@ -10,6 +10,7 @@ import {
   can,
   canAccessContact,
   getAccessScope,
+  isKnownRole,
 } from "./permissions";
 
 /**
@@ -130,10 +131,16 @@ export async function requireAuthOrRedirect(returnTo?: string): Promise<Actor> {
  */
 export async function requirePermissionOrRedirect(permission: Permission): Promise<Actor> {
   const actor = await requireAuthOrRedirect();
-  if (!can(actor, permission)) {
-    redirect(homePathForRole(actor.role));
+  if (can(actor, permission)) return actor;
+
+  // A session whose role this build does not recognise has no home to go to:
+  // redirecting it to a role landing page would bounce it straight back here,
+  // and the browser would see an endless redirect. Send it to sign in instead.
+  if (!isKnownRole(actor.role)) {
+    redirect("/login?error=SessionInvalid");
   }
-  return actor;
+
+  redirect(homePathForRole(actor.role));
 }
 
 /** Where a role lands after signing in. */

@@ -75,6 +75,17 @@ export const ROLE_PERMISSIONS: Readonly<Record<UserRole, ReadonlySet<Permission>
   [UserRole.CONTACT]: new Set(CONTACT_PERMISSIONS),
 };
 
+/**
+ * Whether this build recognises the role on a session.
+ *
+ * A token can carry a role we do not know about (a stale cookie, a renamed
+ * role, a tampered payload). Such a session is not usable, and callers must
+ * send it back to sign in rather than bounce it around the app.
+ */
+export function isKnownRole(role: unknown): role is UserRole {
+  return typeof role === "string" && Object.prototype.hasOwnProperty.call(ROLE_PERMISSIONS, role);
+}
+
 /** The minimum a caller must present to be authorised. */
 export interface Actor {
   id: string;
@@ -85,7 +96,15 @@ export interface Actor {
 
 export function can(actor: Actor | null | undefined, permission: Permission): boolean {
   if (!actor) return false;
-  return ROLE_PERMISSIONS[actor.role].has(permission);
+
+  // An unrecognised role grants nothing. A session token can carry a role this
+  // build does not know about -- an old cookie, a renamed role, a tampered
+  // payload -- and indexing blindly would throw here, turning a bad cookie into
+  // a 500 on every authenticated page. Fail closed instead.
+  const permissions = ROLE_PERMISSIONS[actor.role];
+  if (!permissions) return false;
+
+  return permissions.has(permission);
 }
 
 export function canAll(actor: Actor | null | undefined, permissions: Permission[]): boolean {
@@ -123,7 +142,14 @@ export function getAccessScope(actor: Actor | null | undefined): AccessScope {
     return actor.contactId ? { kind: "contact", contactId: actor.contactId } : { kind: "none" };
   }
 
-  return { kind: "all" };
+  // Only the back-office roles see everything. Anything else -- including a
+  // role this build does not recognise -- gets no access at all. Defaulting to
+  // "all" here would hand an unknown role the whole database.
+  if (actor.role === UserRole.ADMIN || actor.role === UserRole.ACCOUNTANT) {
+    return { kind: "all" };
+  }
+
+  return { kind: "none" };
 }
 
 /**

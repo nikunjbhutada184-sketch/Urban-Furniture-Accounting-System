@@ -143,6 +143,39 @@ describe("back-office scoping", () => {
   });
 });
 
+describe("unknown or malformed roles fail closed", () => {
+  // A session token can carry a role this build does not know about: an old
+  // cookie, a renamed role, or a tampered payload. None of it may crash, and
+  // none of it may grant access.
+  const unknownRole = { id: "u_stale", role: "SUPERUSER" as UserRole };
+  const missingRole = { id: "u_broken" } as unknown as Actor;
+
+  it("grants no permission to an unrecognised role", () => {
+    for (const permission of ["report:view", "master:view", "user:manage"] as const) {
+      expect(can(unknownRole, permission)).toBe(false);
+    }
+  });
+
+  it("does not throw when the role is unrecognised", () => {
+    // Previously this threw a TypeError, which surfaced as a 500 on every
+    // authenticated page for anyone holding a stale cookie.
+    expect(() => can(unknownRole, "report:view")).not.toThrow();
+    expect(() => can(missingRole, "report:view")).not.toThrow();
+    expect(can(missingRole, "report:view")).toBe(false);
+  });
+
+  it("gives an unrecognised role no data scope at all", () => {
+    // Failing open here would hand an unknown role the whole database.
+    expect(getAccessScope(unknownRole)).toEqual({ kind: "none" });
+    expect(scopeToWhere(getAccessScope(unknownRole))).toEqual({ contactId: "__no_access__" });
+    expect(canAccessContact(unknownRole, "contact_nimesh")).toBe(false);
+  });
+
+  it("refuses an unrecognised role at the assertion boundary", () => {
+    expect(() => assertPermission(unknownRole, "report:view")).toThrow(ForbiddenError);
+  });
+});
+
 describe("unauthenticated callers", () => {
   it("are denied every permission", () => {
     expect(can(null, "report:view")).toBe(false);

@@ -23,6 +23,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "db:demo": "tsx prisma/demo-seed.ts",
     "db:reset": "prisma migrate reset",
     "verify": "npm run typecheck && npm run lint && npm run test",
     "test:integration": "vitest run --config vitest.integration.mts"
@@ -50,6 +51,7 @@
     "lucide-react": "^0.475.0",
     "next": "16.3.4",
     "next-auth": "^5.0.0-beta.25",
+    "pdfkit": "^0.20.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tailwind-merge": "^3.0.1",
@@ -62,6 +64,7 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^20",
+    "@types/pdfkit": "^0.17.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.3.4",

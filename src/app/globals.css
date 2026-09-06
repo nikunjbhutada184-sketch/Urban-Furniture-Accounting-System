@@ -3,66 +3,102 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---------------------------------------------------------------------------
+ * Theme
+ *
+ * A cool grey page, one large rounded shell floating on it, and white cards
+ * inside that shell. Chrome is quiet and borderless -- separation comes from
+ * surface colour and a soft shadow, not from lines. Financial figures are the
+ * loudest thing on screen.
+ * ------------------------------------------------------------------------- */
+
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.995 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 1.25rem;
+
+  /* The page ground, the shell that floats on it, and the cards inside. */
+  --ground: oklch(0.916 0.004 275);
+  --background: oklch(0.98 0.002 275);
+  --foreground: oklch(0.19 0.012 265);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.19 0.012 265);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.35 0.055 45);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0.005 60);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0.004 60);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.955 0.015 70);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.55 0.13 155);
-  --warning: oklch(0.7 0.15 75);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.45 0.05 45);
-  --sidebar: oklch(0.985 0.004 60);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-accent: oklch(0.955 0.012 70);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.19 0.012 265);
+
+  /* Deep emerald, as in the reference. */
+  --primary: oklch(0.545 0.145 156);
+  --primary-foreground: oklch(0.99 0.01 155);
+  --primary-soft: oklch(0.938 0.045 158);
+
+  --secondary: oklch(0.965 0.003 275);
+  --secondary-foreground: oklch(0.28 0.014 265);
+  --muted: oklch(0.965 0.003 275);
+  --muted-foreground: oklch(0.55 0.014 265);
+  --accent: oklch(0.945 0.035 158);
+  --accent-foreground: oklch(0.33 0.09 157);
+
+  --destructive: oklch(0.58 0.205 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.545 0.145 156);
+  --warning: oklch(0.72 0.15 70);
+
+  /* Borders are a last resort; most separation is surface + shadow. */
+  --border: oklch(0.925 0.004 275);
+  --input: oklch(0.945 0.004 275);
+  --ring: oklch(0.545 0.145 156);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.19 0.012 265);
+  --sidebar-border: oklch(0.94 0.004 275);
+  --sidebar-accent: oklch(0.938 0.045 158);
+  --sidebar-accent-foreground: oklch(0.3 0.1 157);
+
+  --chart-1: oklch(0.63 0.13 162);
+  --chart-2: oklch(0.66 0.17 42);
+  --chart-grid: oklch(0.93 0.004 275);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0.04 70);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.3 0.015 70);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.7 0.14 155);
-  --warning: oklch(0.8 0.15 75);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.556 0 0);
-  --sidebar: oklch(0.185 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ground: oklch(0.14 0.008 265);
+  --background: oklch(0.18 0.009 265);
+  --foreground: oklch(0.97 0.003 265);
+  --card: oklch(0.225 0.01 265);
+  --card-foreground: oklch(0.97 0.003 265);
+  --popover: oklch(0.225 0.01 265);
+  --popover-foreground: oklch(0.97 0.003 265);
+
+  --primary: oklch(0.68 0.145 158);
+  --primary-foreground: oklch(0.16 0.03 158);
+  --primary-soft: oklch(0.3 0.055 158);
+
+  --secondary: oklch(0.28 0.01 265);
+  --secondary-foreground: oklch(0.97 0.003 265);
+  --muted: oklch(0.28 0.01 265);
+  --muted-foreground: oklch(0.72 0.01 265);
+  --accent: oklch(0.31 0.05 158);
+  --accent-foreground: oklch(0.93 0.035 158);
+
+  --destructive: oklch(0.7 0.185 25);
+  --destructive-foreground: oklch(0.16 0 0);
+  --success: oklch(0.68 0.145 158);
+  --warning: oklch(0.78 0.15 70);
+
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.68 0.145 158);
+
+  --sidebar: oklch(0.225 0.01 265);
+  --sidebar-foreground: oklch(0.97 0.003 265);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-accent: oklch(0.31 0.05 158);
+  --sidebar-accent-foreground: oklch(0.93 0.035 158);
+
+  --chart-1: oklch(0.68 0.13 162);
+  --chart-2: oklch(0.7 0.16 44);
+  --chart-grid: oklch(1 0 0 / 10%);
 }
 
 @theme inline {
+  --color-ground: var(--ground);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -71,6 +107,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -89,26 +126,87 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-grid: var(--chart-grid);
+
+  --radius-sm: calc(var(--radius) - 12px);
+  --radius-md: calc(var(--radius) - 8px);
+  --radius-lg: calc(var(--radius) - 4px);
+  --radius-xl: var(--radius);
+  --radius-2xl: calc(var(--radius) + 6px);
+  --radius-3xl: calc(var(--radius) + 14px);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply outline-ring/50;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-ground text-foreground;
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
   }
 
-  /* Monetary figures are tabular so columns of numbers line up. */
+  /* Financial figures line up column to column. */
   .tabular {
     font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* A hairline scrollbar, so the nav does not grow a heavy grey bar. */
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .scroll-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+  }
+
+  .scroll-slim:hover::-webkit-scrollbar-thumb {
+    background-color: var(--input);
+  }
+}
+
+@layer components {
+  /* A card: white, borderless, lifted just enough to read as floating. */
+  .surface {
+    background-color: var(--card);
+    box-shadow:
+      0 1px 2px oklch(0.2 0.01 265 / 4%),
+      0 10px 30px -18px oklch(0.2 0.01 265 / 22%);
+  }
+
+  .dark .surface {
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 30%),
+      0 10px 30px -18px oklch(0 0 0 / 55%);
+  }
+
+  /* The one large container everything sits inside. */
+  .shell {
+    background-color: var(--background);
+    box-shadow:
+      0 1px 3px oklch(0.2 0.01 265 / 5%),
+      0 24px 60px -32px oklch(0.2 0.01 265 / 28%);
+  }
+
+  .dark .shell {
+    box-shadow:
+      0 1px 3px oklch(0 0 0 / 35%),
+      0 24px 60px -32px oklch(0 0 0 / 60%);
   }
 }

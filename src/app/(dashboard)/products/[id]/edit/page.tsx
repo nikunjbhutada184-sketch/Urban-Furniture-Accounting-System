@@ -49,7 +49,22 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
 
       <ProductForm
         action={updateProductAction.bind(null, id)}
-        product={product}
+        // Serialised at the boundary: Decimal cannot cross into a client
+        // component, so prices are handed over as exact decimal strings.
+        product={{
+          name: product.name,
+          sku: product.sku ?? "",
+          type: product.type,
+          salesPrice: product.salesPrice.toString(),
+          cost: product.cost.toString(),
+          categoryId: product.categoryId,
+          incomeAccountId: product.incomeAccountId,
+          expenseAccountId: product.expenseAccountId,
+          salesTaxId: product.salesTaxId,
+          purchaseTaxId: product.purchaseTaxId,
+          trackInventory: product.trackInventory,
+          imageUrl: product.imageUrl,
+        }}
         categories={categories.map((c) => ({ id: c.id, label: c.name }))}
         incomeAccounts={incomeAccounts.map((a) => ({ id: a.id, label: a.label }))}
         expenseAccounts={expenseAccounts.map((a) => ({ id: a.id, label: a.label }))}

@@ -49,3 +49,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# uploaded images (local storage)
+/public/uploads
+
+# playwright saved sessions
+/e2e/.auth

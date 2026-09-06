@@ -23,7 +23,11 @@ export function ProductKanban({ rows }: { rows: ProductListRow[] }) {
           muted={product.isArchived}
         >
           <div className="flex items-start gap-3">
-            <KanbanThumbnail alt={`${product.name} image`} fallback={initialsOf(product.name)} />
+            <KanbanThumbnail
+              src={product.imageUrl}
+              alt={`${product.name} photo`}
+              fallback={initialsOf(product.name)}
+            />
 
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">

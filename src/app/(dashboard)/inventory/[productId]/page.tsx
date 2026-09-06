@@ -1,107 +1,173 @@
-import { prisma } from "@/server/db/prisma";
-import { notFound } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Package } from "lucide-react";
+import { type Metadata } from "next";
 import Link from "next/link";
-import { format } from "date-fns";
+import { notFound } from "next/navigation";
+import { EmptyState } from "@/components/data-table/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { getCurrentStock, getStockMoves } from "@/modules/inventory/stock-service";
+import { getProduct } from "@/modules/products/product-service";
+import { requirePermissionOrRedirect } from "@/server/auth/session";
+import { isAppError } from "@/server/errors";
+import { type Decimal, ZERO, add, subtract, toAmountString } from "@/server/money";
 
-export default async function ProductStockHistoryPage(props: { params: Promise<{ productId: string }> }) {
-  const params = await props.params;
-  const product = await prisma.product.findUnique({
-    where: { id: params.productId },
-    include: {
-      stockMoves: {
-        orderBy: { date: 'desc' },
-        include: {
-          createdBy: { select: { name: true } }
-        }
-      }
-    }
+export const metadata: Metadata = { title: "Stock history" };
+
+/** Links a stock move back to the document that caused it. */
+function sourceHref(sourceType: string | null, sourceId: string | null): string | null {
+  if (!sourceType || !sourceId) return null;
+
+  switch (sourceType) {
+    case "VendorBill":
+      return `/purchases/bills/${sourceId}`;
+    case "CustomerInvoice":
+      return `/sales/invoices/${sourceId}`;
+    default:
+      return null;
+  }
+}
+
+const MOVE_TYPE_LABELS: Record<string, string> = {
+  PURCHASE_RECEIPT: "Goods received",
+  SALE_DELIVERY: "Goods delivered",
+  RETURN_IN: "Return in",
+  RETURN_OUT: "Return out",
+  ADJUSTMENT: "Adjustment",
+  OPENING_BALANCE: "Opening balance",
+};
+
+export default async function ProductStockHistoryPage({
+  params,
+}: {
+  params: Promise<{ productId: string }>;
+}) {
+  await requirePermissionOrRedirect("transaction:view");
+  const { productId } = await params;
+
+  const product = await getProduct(productId).catch((error) => {
+    if (isAppError(error) && error.code === "NOT_FOUND") notFound();
+    throw error;
   });
 
-  if (!product) notFound();
+  const [balance, moves] = await Promise.all([
+    getCurrentStock(productId),
+    getStockMoves(productId),
+  ]);
 
-  // Re-calculate running balance (we iterate from oldest to newest)
-  const movesAsc = [...product.stockMoves].reverse();
-  let runningQty = 0;
-  const movesWithBalance = movesAsc.map(move => {
-    const qty = move.quantity.toNumber();
-    if (move.direction === "IN") {
-      runningQty += qty;
-    } else {
-      runningQty -= qty;
-    }
-    return { ...move, runningQty };
-  }).reverse(); // Reverse back for display
+  // Moves come newest first; the running balance is computed oldest-first and
+  // then re-reversed, so each row shows the balance as at that move.
+  const oldestFirst = [...moves].reverse();
+  const runningByMoveId = new Map<string, Decimal>();
+  let running: Decimal = ZERO;
+
+  for (const move of oldestFirst) {
+    running = move.direction === "IN" ? add(running, move.quantity) : subtract(running, move.quantity);
+    runningByMoveId.set(move.id, running);
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <Button variant="outline" size="icon" asChild className="border-emerald-200 text-emerald-800 hover:bg-emerald-50">
-          <Link href="/inventory">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-emerald-900 flex items-center">
-            <Package className="mr-3 h-8 w-8 text-emerald-600" />
-            {product.name}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            SKU: {product.sku || "N/A"} | Cost: Rs. {product.cost.toNumber().toFixed(2)}
-          </p>
-        </div>
+    <div className="mx-auto max-w-5xl space-y-5">
+      <PageHeader
+        title={product.name}
+        description="Every movement in and out, newest first."
+        action={{ label: "Back to stock", href: "/inventory" }}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        {[
+          { label: "On hand", value: toAmountString(balance.quantityOnHand) },
+          { label: "Stock value", value: toAmountString(balance.valueOnHand) },
+          { label: "Movements", value: String(moves.length) },
+        ].map((item) => (
+          <Card key={item.label}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-muted-foreground text-xs font-medium uppercase">
+                {item.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="tabular text-sm font-medium">{item.value}</CardContent>
+          </Card>
+        ))}
       </div>
 
-      <Card className="border-emerald-100 shadow-sm">
-        <CardHeader className="bg-emerald-50/50 border-b border-emerald-100 pb-4">
-          <CardTitle className="text-emerald-800">Stock Movement History (Audit Trail)</CardTitle>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Movement history</CardTitle>
+          <CardDescription>
+            Purchases move stock in when a vendor bill is posted; sales move it out when a
+            customer invoice is posted. Adjustments are manual corrections.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-emerald-50/30">
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Reference</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Unit Cost</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {movesWithBalance.map((move) => (
-                <TableRow key={move.id} className="hover:bg-emerald-50/20">
-                  <TableCell className="text-emerald-900">
-                    {format(move.date, "dd MMM yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={move.direction === "IN" ? "default" : "secondary"} className={move.direction === "IN" ? "bg-emerald-500" : "bg-orange-100 text-orange-800"}>
-                      {move.moveType.replace("_", " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{move.reference || "-"}</TableCell>
-                  <TableCell className="text-muted-foreground">{move.createdBy?.name || "System"}</TableCell>
-                  <TableCell className={`text-right font-medium ${move.direction === "IN" ? "text-emerald-600" : "text-orange-600"}`}>
-                    {move.direction === "IN" ? "+" : "-"}{move.quantity.toNumber().toFixed(3)}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">Rs. {move.unitCost.toNumber().toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-bold text-emerald-900">{move.runningQty.toFixed(3)}</TableCell>
-                </TableRow>
-              ))}
-              {movesWithBalance.length === 0 && (
+          {moves.length === 0 ? (
+            <EmptyState
+              title="No movements yet"
+              description="Stock moves are created when bills and invoices are posted, or by a manual adjustment."
+              action={{ label: "Adjust stock", href: "/inventory/adjust" }}
+            />
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No stock movements recorded for this product.
-                  </TableCell>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead className="text-right">In</TableHead>
+                  <TableHead className="text-right">Out</TableHead>
+                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+
+              <TableBody>
+                {moves.map((move) => {
+                  const href = sourceHref(move.sourceType, move.sourceId);
+
+                  return (
+                    <TableRow key={move.id}>
+                      <TableCell className="text-muted-foreground tabular">
+                        {move.date.toISOString().slice(0, 10)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={move.direction === "IN" ? "success" : "secondary"}>
+                          {MOVE_TYPE_LABELS[move.moveType] ?? move.moveType}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {href ? (
+                          <Link href={href} className="hover:underline">
+                            {move.reference ?? "—"}
+                          </Link>
+                        ) : (
+                          (move.reference ?? "—")
+                        )}
+                      </TableCell>
+                      <TableCell className="tabular text-right">
+                        {move.direction === "IN" ? toAmountString(move.quantity) : ""}
+                      </TableCell>
+                      <TableCell className="tabular text-right">
+                        {move.direction === "OUT" ? toAmountString(move.quantity) : ""}
+                      </TableCell>
+                      <TableCell className="tabular text-right font-medium">
+                        {toAmountString(runningByMoveId.get(move.id) ?? 0)}
+                      </TableCell>
+                      <TableCell className="tabular text-right">
+                        {toAmountString(move.value)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>

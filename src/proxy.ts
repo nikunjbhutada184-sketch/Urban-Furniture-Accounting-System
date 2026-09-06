@@ -17,7 +17,10 @@ import { authConfig } from "@/server/auth/auth.config";
 const { auth } = NextAuth(authConfig);
 
 /** Routes reachable without a session. */
-const PUBLIC_PATHS = ["/login", "/api/auth"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/api/auth"];
+
+/** The subset of public routes a signed-in user has no use for. */
+const SIGNED_OUT_ONLY_PATHS = ["/login", "/signup"];
 
 /** Route prefixes only the back office (ADMIN / ACCOUNTANT) may load. */
 const BACK_OFFICE_PREFIXES = [
@@ -47,6 +50,16 @@ function startsWithAny(pathname: string, prefixes: string[]): boolean {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+/**
+ * Roles this build understands. Declared inline rather than imported so the
+ * proxy stays free of any Prisma import on the Edge runtime.
+ */
+const KNOWN_ROLES = ["ADMIN", "ACCOUNTANT", "CONTACT"] as const;
+
+function isKnownRole(role: UserRole | undefined): role is UserRole {
+  return typeof role === "string" && (KNOWN_ROLES as readonly string[]).includes(role);
+}
+
 function homePathForRole(role: UserRole | undefined): string {
   return role === "CONTACT" ? "/portal" : "/dashboard";
 }
@@ -57,8 +70,12 @@ export default auth((request) => {
   const role = user?.role;
 
   if (startsWithAny(pathname, PUBLIC_PATHS)) {
-    // Already signed in? Skip the login page.
-    if (user && pathname === "/login") {
+    // Already signed in with a usable role? Skip the login page.
+    //
+    // A session carrying an unrecognised role must be allowed to REACH /login:
+    // sending it to a role home would bounce it straight back here, and the
+    // browser would give up with "too many redirects".
+    if (user && isKnownRole(role) && startsWithAny(pathname, SIGNED_OUT_ONLY_PATHS)) {
       return NextResponse.redirect(new URL(homePathForRole(role), request.nextUrl));
     }
     return NextResponse.next();

@@ -23,6 +23,7 @@ export interface ProductListRow {
   salesPrice: string;
   cost: string;
   categoryName: string | null;
+  imageUrl: string | null;
   trackInventory: boolean;
   isArchived: boolean;
 }
@@ -57,6 +58,7 @@ export async function listProducts(
         type: true,
         salesPrice: true,
         cost: true,
+        imageUrl: true,
         trackInventory: true,
         isArchived: true,
         category: { select: { name: true } },
@@ -75,6 +77,7 @@ export async function listProducts(
       salesPrice: toAmountString(record.salesPrice),
       cost: toAmountString(record.cost),
       categoryName: record.category?.name ?? null,
+      imageUrl: record.imageUrl,
       trackInventory: record.trackInventory,
       isArchived: record.isArchived,
     })),
@@ -161,6 +164,7 @@ function toProductData(input: ProductInput, categoryId: string | null) {
     expenseAccountId: input.expenseAccountId,
     salesTaxId: input.salesTaxId,
     purchaseTaxId: input.purchaseTaxId,
+    imageUrl: input.imageUrl,
     trackInventory: input.trackInventory,
   };
 }

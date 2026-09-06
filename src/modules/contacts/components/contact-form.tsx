@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { Field, FormAlert, SubmitButton, fieldProps } from "@/components/forms/field";
+import { ImageUpload } from "@/components/forms/image-upload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -125,14 +126,16 @@ export function ContactForm({
             />
           </Field>
 
-          <Field name="profileImage" label="Profile image URL" error={error("profileImage")}>
-            <Input
-              {...fieldProps("profileImage", error("profileImage"))}
-              type="url"
+          <div className="sm:col-span-2">
+            <ImageUpload
+              name="profileImage"
+              label="Profile photo"
+              hint="Shown on the kanban cards. PNG, JPEG, WebP or GIF, up to 2 MB."
               defaultValue={initial("profileImage")}
-              placeholder="https://..."
+              fallback={(initial("name") || "?").slice(0, 2).toUpperCase()}
+              error={error("profileImage")}
             />
-          </Field>
+          </div>
         </CardContent>
       </Card>
 
