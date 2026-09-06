@@ -37,19 +37,18 @@ export function defaultPeriod(today: Date = new Date()): ReportPeriod {
 export function parsePeriod(
   searchParams: Record<string, string | string[] | undefined>,
 ): ReportPeriod {
-  const first = (value: string | string[] | undefined) =>
-    Array.isArray(value) ? value[0] : value;
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
   const fallback = defaultPeriod();
   const rawFrom = first(searchParams.from);
   const rawTo = first(searchParams.to);
 
-  const from = rawFrom && /^\d{4}-\d{2}-\d{2}$/.test(rawFrom)
-    ? new Date(`${rawFrom}T00:00:00.000Z`)
-    : fallback.from;
-  const to = rawTo && /^\d{4}-\d{2}-\d{2}$/.test(rawTo)
-    ? new Date(`${rawTo}T00:00:00.000Z`)
-    : fallback.to;
+  const from =
+    rawFrom && /^\d{4}-\d{2}-\d{2}$/.test(rawFrom)
+      ? new Date(`${rawFrom}T00:00:00.000Z`)
+      : fallback.from;
+  const to =
+    rawTo && /^\d{4}-\d{2}-\d{2}$/.test(rawTo) ? new Date(`${rawTo}T00:00:00.000Z`) : fallback.to;
 
   // A backwards range would silently return nothing; swap instead.
   return from.getTime() <= to.getTime() ? { from, to } : { from: to, to: from };
@@ -185,6 +184,12 @@ export interface BalanceSheetReport {
   totalAssets: string;
   totalLiabilities: string;
   totalCapital: string;
+  /**
+   * All income less all expenses up to the as-at date, which is what actually
+   * makes the equation hold. Distinct from `netProfit`, which covers only the
+   * selected period.
+   */
+  retainedEarnings: string;
   /** Profit for the period, folded into capital so the sheet balances. */
   netProfit: string;
   totalLiabilitiesAndCapital: string;
@@ -216,6 +221,22 @@ export async function getBalanceSheet(
   let totalLiabilities = ZERO;
   let totalCapital = ZERO;
 
+  /**
+   * Cumulative income less expenses, to the as-at date.
+   *
+   * Income and expense accounts are never closed into capital in this system,
+   * so everything they hold is retained earnings and belongs on this sheet.
+   *
+   * Folding in only the *period's* profit — as this did — leaves out every
+   * pound traded before `period.from`, and the balance sheet then fails to
+   * balance by exactly that amount. It went unnoticed while all activity
+   * happened to start on the first day of the reporting period.
+   *
+   * Income is credit-natured and expense debit-natured, so negating the sum of
+   * both signed balances gives profit directly.
+   */
+  let retainedEarnings = ZERO;
+
   for (const balance of balances) {
     switch (balance.type) {
       case AccountType.ASSET: {
@@ -235,15 +256,21 @@ export async function getBalanceSheet(
         capital.push(toLine(balance, amount));
         break;
       }
+      case AccountType.INCOME:
+      case AccountType.EXPENSE: {
+        retainedEarnings = subtract(retainedEarnings, balance.balance);
+        break;
+      }
       default:
         break;
     }
   }
 
-  // Income and expense accounts have not been closed into capital, so the
-  // period's profit is added here to make the equation hold.
+  // The period's profit is reported for context; retained earnings is what is
+  // folded into capital, because that is what the assets were actually built
+  // from.
   const netProfit = toMoney(profitAndLoss.netProfit);
-  const totalCapitalWithProfit = add(totalCapital, netProfit);
+  const totalCapitalWithProfit = add(totalCapital, retainedEarnings);
   const totalLiabilitiesAndCapital = add(totalLiabilities, totalCapitalWithProfit);
   const difference = subtract(totalAssets, totalLiabilitiesAndCapital);
 
@@ -254,6 +281,7 @@ export async function getBalanceSheet(
     totalAssets: toAmountString(totalAssets),
     totalLiabilities: toAmountString(totalLiabilities),
     totalCapital: toAmountString(totalCapitalWithProfit),
+    retainedEarnings: toAmountString(retainedEarnings),
     netProfit: toAmountString(netProfit),
     totalLiabilitiesAndCapital: toAmountString(totalLiabilitiesAndCapital),
     difference: toAmountString(difference),
@@ -374,8 +402,7 @@ function summariseOutstanding(
   let totalOverdue = ZERO;
 
   const rows = documents.map((document) => {
-    const isOverdue =
-      document.dueDate !== null && document.dueDate.getTime() < asAt.getTime();
+    const isOverdue = document.dueDate !== null && document.dueDate.getTime() < asAt.getTime();
 
     totalOutstanding = add(totalOutstanding, document.outstanding);
     if (isOverdue) totalOverdue = add(totalOverdue, document.outstanding);

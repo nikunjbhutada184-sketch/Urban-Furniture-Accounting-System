@@ -45,6 +45,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar
             menu={menu}
+            sections={sections}
             name={session?.user?.name ?? "User"}
             email={session?.user?.email ?? ""}
             role={actor.role}

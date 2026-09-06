@@ -4,7 +4,7 @@ import {
   profitAndLossDocument,
   reportFileName,
 } from "@/modules/reporting/pdf/financial-report-pdf";
-import { renderReportPdf } from "@/modules/reporting/pdf/report-pdf";
+import { pdfSafe, renderReportPdf } from "@/modules/reporting/pdf/report-pdf";
 import {
   type BalanceSheetReport,
   type ProfitAndLossReport,
@@ -53,6 +53,7 @@ function balanceSheet(overrides: Partial<BalanceSheetReport> = {}): BalanceSheet
     totalLiabilities: "0.00",
     totalCapital: "0.00",
     totalLiabilitiesAndCapital: "0.00",
+    retainedEarnings: "0.00",
     netProfit: "0.00",
     isBalanced: true,
     difference: "0.00",
@@ -124,15 +125,23 @@ describe("balanceSheetDocument", () => {
     expect(document.closing?.value).toBe("Out by 42.00");
   });
 
-  it("shows the period's profit as its own line inside capital", () => {
+  it("folds RETAINED EARNINGS into capital, not the period's profit", () => {
+    // The two differ whenever the period starts after trading began, and it is
+    // retained earnings that makes assets equal liabilities plus capital.
+    // Using the period's profit here left the sheet out of balance by whatever
+    // had been traded beforehand.
     const document = balanceSheetDocument(
-      balanceSheet({ capital: lines(1, "3"), netProfit: "999.00" }),
+      balanceSheet({
+        capital: lines(1, "3"),
+        netProfit: "999.00",
+        retainedEarnings: "12345.00",
+      }),
       PERIOD,
       "Urban Furniture",
     );
 
     const capital = document.tables.find((table) => table.title === "Capital");
-    expect(capital?.extraRow).toEqual(["", "Profit for the period", "999.00"]);
+    expect(capital?.extraRow).toEqual(["", "Retained earnings", "12345.00"]);
   });
 });
 
@@ -183,5 +192,32 @@ describe("reportFileName", () => {
     expect(reportFileName("balance-sheet", PERIOD)).toBe(
       "balance-sheet_2026-04-01_to_2027-03-31.pdf",
     );
+  });
+});
+
+describe("pdfSafe", () => {
+  it("replaces a true minus sign, which WinAnsi cannot draw", () => {
+    // The bug this guards: U+2212 rendered as a double quote in a total line.
+    expect(pdfSafe("Tax 39682.28 \u2212 Received")).toBe("Tax 39682.28 - Received");
+  });
+
+  it("spells out the rupee sign", () => {
+    expect(pdfSafe("\u20B9 1,200.00")).toBe("Rs. 1,200.00");
+  });
+
+  it("keeps characters WinAnsi does have", () => {
+    // Middle dot, en/em dash and curly quotes are all encodable.
+    expect(pdfSafe("Urban \u00b7 Furniture \u2014 \u201cchair\u201d")).toBe(
+      "Urban \u00b7 Furniture \u2014 \u201cchair\u201d",
+    );
+  });
+
+  it("falls back to ? for a script the standard fonts cannot draw", () => {
+    // A known limit: non-Latin names need an embedded Unicode font.
+    expect(pdfSafe("\u0915\u0941\u0930\u094d\u0938\u0940")).toBe("??????");
+  });
+
+  it("leaves ordinary text untouched", () => {
+    expect(pdfSafe("DEMO Bamboo Bed Frame 124")).toBe("DEMO Bamboo Bed Frame 124");
   });
 });

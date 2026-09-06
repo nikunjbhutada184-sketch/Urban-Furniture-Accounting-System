@@ -1,23 +1,29 @@
-import { Bell, Search } from "lucide-react";
 import { type UserRole } from "@prisma/client";
 import { AppMenu } from "@/components/app-shell/app-menu";
 import { type MenuColumn } from "@/components/app-shell/menu-model";
+import { MobileNav } from "@/components/app-shell/mobile-nav";
+import { type NavSection } from "@/components/app-shell/nav-items";
 import { UserMenu } from "@/components/app-shell/user-menu";
 
 /**
- * The top bar: a quiet strip carrying search, notifications and the user menu.
+ * The top bar: the application menu and the user menu.
  *
- * Search is presentational for now -- every list has its own search box, and a
- * global search needs an index to be worth shipping.
+ * It previously also carried a search button and a notification bell. Neither
+ * did anything -- global search needs an index to be worth shipping, and there
+ * is nothing generating notifications -- so they have been removed rather than
+ * left as controls that ignore the click.
  */
 export function Topbar({
   menu,
+  sections,
   name,
   email,
   role,
   canManageSettings,
 }: {
   menu: MenuColumn[];
+  /** The sidebar's sections, for the narrow-screen drawer. */
+  sections: NavSection[];
   name: string;
   email: string;
   role: UserRole;
@@ -26,9 +32,7 @@ export function Topbar({
   return (
     <header className="flex h-[72px] shrink-0 items-center justify-between gap-4 px-4 lg:px-6">
       <div className="flex items-center gap-2 lg:hidden">
-        <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-full text-xs font-bold">
-          UF
-        </span>
+        <MobileNav sections={sections} />
         <span className="text-sm font-semibold">Urban Furniture</span>
       </div>
 
@@ -36,23 +40,7 @@ export function Topbar({
         <AppMenu columns={menu} />
       </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="Search"
-          className="bg-card text-muted-foreground hover:text-foreground flex size-10 items-center justify-center rounded-full transition-colors"
-        >
-          <Search className="size-4" aria-hidden />
-        </button>
-
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="bg-card text-muted-foreground hover:text-foreground flex size-10 items-center justify-center rounded-full transition-colors"
-        >
-          <Bell className="size-4" aria-hidden />
-        </button>
-
+      <div className="flex shrink-0 items-center gap-2">
         <UserMenu name={name} email={email} role={role} canManageSettings={canManageSettings} />
       </div>
     </header>

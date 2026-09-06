@@ -97,8 +97,15 @@ export interface BudgetListRow {
   revisionOfName: string | null;
 }
 
+/**
+ * Budgets, newest period first.
+ *
+ * Paged: each row renders a donut, and a few hundred of them is several
+ * seconds of server rendering. `skip`/`take` are optional so existing callers
+ * that genuinely want every row (the dashboard, exports) keep working.
+ */
 export async function listBudgets(
-  filters: { status?: BudgetStatus; search?: string } = {},
+  filters: { status?: BudgetStatus; search?: string; skip?: number; take?: number } = {},
   client: DbClient = prisma,
 ): Promise<BudgetListRow[]> {
   const where: Prisma.BudgetWhereInput = {};
@@ -109,6 +116,8 @@ export async function listBudgets(
 
   const budgets = await client.budget.findMany({
     where,
+    ...(filters.skip === undefined ? {} : { skip: filters.skip }),
+    ...(filters.take === undefined ? {} : { take: filters.take }),
     orderBy: [{ periodStart: "desc" }, { createdAt: "desc" }],
     select: {
       id: true,
@@ -155,6 +164,20 @@ export async function listBudgets(
       revisionOfName: budget.revisionOf?.name ?? null,
     };
   });
+}
+
+/** How many budgets match, for paging. */
+export async function countBudgets(
+  filters: { status?: BudgetStatus; search?: string } = {},
+  client: DbClient = prisma,
+): Promise<number> {
+  const where: Prisma.BudgetWhereInput = {};
+  if (filters.status) where.status = filters.status;
+  if (filters.search) {
+    where.name = { contains: filters.search, mode: "insensitive" };
+  }
+
+  return client.budget.count({ where });
 }
 
 export interface BudgetLineRow {

@@ -20,6 +20,7 @@ import {
 } from "@/modules/sales/actions";
 import { getCustomerInvoice } from "@/modules/sales/customer-invoice-service";
 import { DocumentActionButton } from "@/modules/shared/components/document-action-button";
+import { DocumentPdfLink } from "@/modules/shared/components/document-pdf-link";
 import { PaymentDialog } from "@/modules/shared/components/payment-dialog";
 import { InvoiceStatusBadge } from "@/modules/shared/components/status-badge";
 import { can } from "@/server/auth/permissions";
@@ -51,6 +52,7 @@ export default async function CustomerInvoicePage({ params }: { params: Promise<
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <PageHeader title={invoice.number} description={`Customer: ${invoice.customer.name}`}>
+        <DocumentPdfLink href={`/sales/invoices/${invoice.id}/pdf`} />
         <InvoiceStatusBadge status={invoice.status} />
       </PageHeader>
 

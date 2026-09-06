@@ -23,6 +23,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "db:demo": "tsx prisma/demo-seed.ts",
     "db:reset": "prisma migrate reset",
     "verify": "npm run typecheck && npm run lint && npm run test",
     "test:integration": "vitest run --config vitest.integration.mts"

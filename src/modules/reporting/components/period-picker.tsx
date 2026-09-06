@@ -45,30 +45,32 @@ export function PeriodPicker({ from, to }: { from: string; to: string }) {
     } as const;
 
     const [start, end] = ranges[preset];
-    apply(
-      new Date(start).toISOString().slice(0, 10),
-      new Date(end).toISOString().slice(0, 10),
-    );
+    apply(new Date(start).toISOString().slice(0, 10), new Date(end).toISOString().slice(0, 10));
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="bg-card flex items-center gap-2 rounded-full border px-3 py-1.5">
-        <CalendarDays className="text-muted-foreground size-4" aria-hidden />
+      {/*
+        Full width on a phone, natural width from `sm` up. Two fixed-width date
+        inputs plus their chrome are wider than a 375px viewport, so on mobile
+        they share the row instead of running off the edge.
+      */}
+      <div className="bg-card flex w-full min-w-0 items-center gap-2 rounded-full border px-3 py-1.5 sm:w-auto">
+        <CalendarDays className="text-muted-foreground size-4 shrink-0" aria-hidden />
         <Input
           type="date"
           value={from}
           aria-label="Period start"
           onChange={(event) => apply(event.target.value, to)}
-          className="h-7 w-[9.5rem] border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+          className="h-7 w-full min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 sm:w-[9.5rem] sm:flex-none"
         />
-        <span className="text-muted-foreground text-sm">to</span>
+        <span className="text-muted-foreground shrink-0 text-sm">to</span>
         <Input
           type="date"
           value={to}
           aria-label="Period end"
           onChange={(event) => apply(from, event.target.value)}
-          className="h-7 w-[9.5rem] border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+          className="h-7 w-full min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0 sm:w-[9.5rem] sm:flex-none"
         />
       </div>
 

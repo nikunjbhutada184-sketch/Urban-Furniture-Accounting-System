@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { StatCard } from "@/components/ui/stat-card";
 import { type RawSearchParams } from "@/lib/list-params";
 import { OutstandingTable } from "@/modules/reporting/components/outstanding-table";
+import { ReportExportLinks } from "@/modules/reporting/components/report-export";
 import { ReportShell } from "@/modules/reporting/components/report-shell";
 import { getVendorOutstandingReport, parsePeriod } from "@/modules/reporting/report-service";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
@@ -25,6 +26,7 @@ export default async function VendorOutstandingReportPage({
       title="Vendor Outstanding"
       description={`Unpaid vendor bills as at ${period.to.toISOString().slice(0, 10)}.`}
       period={period}
+      actions={<ReportExportLinks period={period} csvReport="vendor-outstanding" />}
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Total outstanding" value={report.totalOutstanding} tone="primary" />

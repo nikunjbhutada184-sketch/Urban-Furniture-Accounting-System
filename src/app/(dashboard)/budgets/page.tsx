@@ -2,6 +2,7 @@ import { type BudgetStatus } from "@prisma/client";
 import { type Metadata } from "next";
 import Link from "next/link";
 import { EmptyState } from "@/components/data-table/empty-state";
+import { ListPagination } from "@/components/data-table/list-pagination";
 import { ListToolbar } from "@/components/data-table/list-toolbar";
 import { ViewToggle, parseViewMode } from "@/components/data-table/view-toggle";
 import { PageHeader } from "@/components/page-header";
@@ -14,8 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type RawSearchParams } from "@/lib/list-params";
-import { listBudgets } from "@/modules/budgets/budget-service";
+import { type RawSearchParams, buildPageMeta, parseListParams } from "@/lib/list-params";
+import { countBudgets, listBudgets } from "@/modules/budgets/budget-service";
 import { BudgetKanban } from "@/modules/budgets/components/budget-kanban";
 import { BudgetPie } from "@/modules/budgets/components/budget-pie";
 import { BudgetStatusBadge } from "@/modules/budgets/components/budget-status-badge";
@@ -43,12 +44,30 @@ export default async function BudgetsPage({
   const search = (first(resolved.q) ?? "").trim();
   const view = parseViewMode(resolved);
 
-  const rows = await listBudgets({
-    status: BUDGET_STATUS_OPTIONS.some((option) => option.value === statusFilter)
-      ? (statusFilter as BudgetStatus)
-      : undefined,
-    search: search || undefined,
+  const status = BUDGET_STATUS_OPTIONS.some((option) => option.value === statusFilter)
+    ? (statusFilter as BudgetStatus)
+    : undefined;
+
+  // Paged: every row draws a donut, so rendering all of them is slow once
+  // there are a few hundred budgets.
+  const params = parseListParams({
+    searchParams: resolved,
+    allowedSorts: ["periodStart"] as const,
+    defaultSort: "periodStart",
+    defaultDirection: "desc",
   });
+
+  const [rows, total] = await Promise.all([
+    listBudgets({
+      status,
+      search: search || undefined,
+      skip: (params.page - 1) * params.perPage,
+      take: params.perPage,
+    }),
+    countBudgets({ status, search: search || undefined }),
+  ]);
+
+  const meta = buildPageMeta(params, total);
 
   const canManage = can(actor, "budget:manage");
   const isFiltered = Boolean(search || statusFilter);
@@ -161,6 +180,15 @@ export default async function BudgetsPage({
             </TableBody>
           </Table>
         )}
+
+        {rows.length > 0 ? (
+          <ListPagination
+            meta={meta}
+            pathname={PATHNAME}
+            searchParams={resolved}
+            itemLabel="budgets"
+          />
+        ) : null}
       </div>
 
       {rows.length > 0 ? (

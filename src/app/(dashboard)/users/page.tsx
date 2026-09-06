@@ -1,6 +1,7 @@
 import { UserRole } from "@prisma/client";
 import { type Metadata } from "next";
 import { EmptyState } from "@/components/data-table/empty-state";
+import { ListPagination } from "@/components/data-table/list-pagination";
 import { ListToolbar } from "@/components/data-table/list-toolbar";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type RawSearchParams } from "@/lib/list-params";
+import { type RawSearchParams, buildPageMeta, parseListParams } from "@/lib/list-params";
 import { DocumentActionButton } from "@/modules/shared/components/document-action-button";
 import { setUserActiveAction } from "@/modules/users/actions";
 import { USER_ROLE_LABELS } from "@/modules/users/schemas";
-import { listUsers } from "@/modules/users/user-service";
+import { countUsers, listUsers } from "@/modules/users/user-service";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Users" };
@@ -44,7 +45,23 @@ export default async function UsersPage({
     ? (roleFilter as UserRole)
     : undefined;
 
-  const rows = await listUsers({ search: search || undefined, role });
+  const params = parseListParams({
+    searchParams: resolved,
+    allowedSorts: ["name"] as const,
+    defaultSort: "name",
+  });
+
+  const [rows, total] = await Promise.all([
+    listUsers({
+      search: search || undefined,
+      role,
+      skip: (params.page - 1) * params.perPage,
+      take: params.perPage,
+    }),
+    countUsers({ search: search || undefined, role }),
+  ]);
+
+  const meta = buildPageMeta(params, total);
   const isFiltered = Boolean(search || role);
 
   return (
@@ -127,6 +144,10 @@ export default async function UsersPage({
             </TableBody>
           </Table>
         )}
+
+        {rows.length > 0 ? (
+          <ListPagination meta={meta} pathname="/users" searchParams={resolved} itemLabel="users" />
+        ) : null}
       </div>
     </div>
   );

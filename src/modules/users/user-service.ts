@@ -189,23 +189,37 @@ export interface UserListRow {
   createdAt: Date;
 }
 
-export async function listUsers(
+/** Builds the WHERE shared by the list and its count, so they cannot diverge. */
+function userWhere(filters: { search?: string; role?: UserRole }) {
+  return {
+    ...(filters.role ? { role: filters.role } : {}),
+    ...(filters.search
+      ? {
+          OR: [
+            { name: { contains: filters.search, mode: "insensitive" as const } },
+            { loginId: { contains: filters.search, mode: "insensitive" as const } },
+            { email: { contains: filters.search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+}
+
+export async function countUsers(
   filters: { search?: string; role?: UserRole } = {},
+  client: DbClient = prisma,
+): Promise<number> {
+  return client.user.count({ where: userWhere(filters) });
+}
+
+export async function listUsers(
+  filters: { search?: string; role?: UserRole; skip?: number; take?: number } = {},
   client: DbClient = prisma,
 ): Promise<UserListRow[]> {
   const users = await client.user.findMany({
-    where: {
-      ...(filters.role ? { role: filters.role } : {}),
-      ...(filters.search
-        ? {
-            OR: [
-              { name: { contains: filters.search, mode: "insensitive" as const } },
-              { loginId: { contains: filters.search, mode: "insensitive" as const } },
-              { email: { contains: filters.search, mode: "insensitive" as const } },
-            ],
-          }
-        : {}),
-    },
+    where: userWhere(filters),
+    ...(filters.skip === undefined ? {} : { skip: filters.skip }),
+    ...(filters.take === undefined ? {} : { take: filters.take }),
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: {
       id: true,

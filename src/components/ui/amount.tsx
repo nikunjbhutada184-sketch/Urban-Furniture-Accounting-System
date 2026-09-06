@@ -7,6 +7,12 @@ import { cn } from "@/lib/utils";
  * scanned by its significant digits. Amounts arrive as exact decimal strings
  * from the server -- this component only splits and styles them, it never does
  * arithmetic.
+ *
+ * The paise and the currency prefix recede by *opacity*, not by a colour token.
+ * `text-muted-foreground` is a grey chosen for light surfaces, and on the
+ * dashboard's green card it left the decimals all but invisible -- the figure
+ * looked truncated. Opacity inherits whatever colour the parent is using, so it
+ * works on any background.
  */
 export function Amount({
   value,
@@ -28,9 +34,7 @@ export function Amount({
   const absolute = negative ? value.trim().slice(1) : value.trim();
   const [whole = "0", fraction] = absolute.split(".");
 
-  const grouped = Number.isNaN(Number(whole))
-    ? whole
-    : Number(whole).toLocaleString("en-IN");
+  const grouped = Number.isNaN(Number(whole)) ? whole : Number(whole).toLocaleString("en-IN");
 
   const sizes = {
     sm: "text-sm",
@@ -42,16 +46,18 @@ export function Amount({
   return (
     <span
       className={cn(
-        "tabular font-semibold tracking-tight",
+        // `break-words` so an unusually large figure wraps inside its card
+        // instead of spilling over the border.
+        "tabular font-semibold tracking-tight break-words",
         sizes[size],
         signed && negative && "text-destructive",
         className,
       )}
     >
       {negative ? "−" : signed ? "+" : ""}
-      {currency ? <span className="text-muted-foreground mr-0.5 font-normal">{currency}</span> : null}
+      {currency ? <span className="mr-0.5 font-normal opacity-60">{currency}</span> : null}
       {grouped}
-      {fraction ? <span className="text-muted-foreground font-medium">.{fraction}</span> : null}
+      {fraction ? <span className="font-medium opacity-55">.{fraction}</span> : null}
     </span>
   );
 }
@@ -66,9 +72,7 @@ export function DeltaBadge({ value, className }: { value: number; className?: st
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        positive
-          ? "bg-primary-soft text-accent-foreground"
-          : "bg-destructive/10 text-destructive",
+        positive ? "bg-primary-soft text-accent-foreground" : "bg-destructive/10 text-destructive",
         className,
       )}
     >

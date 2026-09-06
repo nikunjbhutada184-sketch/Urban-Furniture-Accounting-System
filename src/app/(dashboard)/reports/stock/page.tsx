@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type RawSearchParams } from "@/lib/list-params";
+import { ReportExportLinks } from "@/modules/reporting/components/report-export";
 import { ReportShell } from "@/modules/reporting/components/report-shell";
 import { getStockReport, parsePeriod } from "@/modules/reporting/report-service";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
@@ -38,9 +39,12 @@ export default async function StockReportPage({
       description="Opening, movement and closing quantity per tracked product."
       period={period}
       actions={
-        <Link href="/inventory" className="text-muted-foreground text-sm hover:underline">
-          Current stock
-        </Link>
+        <>
+          <ReportExportLinks period={period} csvReport="stock" />
+          <Link href="/inventory" className="text-muted-foreground text-sm hover:underline">
+            Current stock
+          </Link>
+        </>
       }
     >
       <div className="grid gap-4 sm:grid-cols-3">
@@ -106,8 +110,8 @@ export default async function StockReportPage({
       </div>
 
       <p className="text-muted-foreground text-xs">
-        Closing = Opening + Purchases − Sales + Adjustments. Purchases move stock in when a
-        vendor bill is posted; sales move it out when a customer invoice is posted.
+        Closing = Opening + Purchases − Sales + Adjustments. Purchases move stock in when a vendor
+        bill is posted; sales move it out when a customer invoice is posted.
       </p>
     </ReportShell>
   );

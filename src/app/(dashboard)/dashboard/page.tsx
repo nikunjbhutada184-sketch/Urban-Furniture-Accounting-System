@@ -60,7 +60,7 @@ export default async function DashboardPage({
       getOpenBills(),
       getActiveBudgets(period),
       getLedgerHealth(period),
-      getQuickAccessSummary(period),
+      getQuickAccessSummary(),
     ]);
 
   const firstName = (session?.user?.name ?? "there").split(" ")[0];
@@ -106,56 +106,63 @@ export default async function DashboardPage({
           title="Sales"
           action={{ label: "New", href: "/sales/orders/new" }}
           tiles={[
-            { label: "All", value: String(quickAccess.sales.all), href: "/sales/orders" },
+            { label: "All", value: quickAccess.sales.all, href: "/sales/orders" },
             {
               label: "Confirmed",
-              value: String(quickAccess.sales.confirmed),
+              value: quickAccess.sales.confirmed,
               href: "/sales/orders?status=CONFIRMED",
             },
             {
               label: "Draft",
-              value: String(quickAccess.sales.draft),
+              value: quickAccess.sales.draft,
               href: "/sales/orders?status=DRAFT",
             },
           ]}
+          footnote="Totals across all time — each tile opens the list it counts. The period above drives the figures below."
         />
 
         <QuickAccessCard
           title="Purchase"
           action={{ label: "New", href: "/purchases/orders/new" }}
           tiles={[
-            { label: "All", value: String(quickAccess.purchase.all), href: "/purchases/orders" },
+            { label: "All", value: quickAccess.purchase.all, href: "/purchases/orders" },
             {
               label: "Confirmed",
-              value: String(quickAccess.purchase.confirmed),
+              value: quickAccess.purchase.confirmed,
               href: "/purchases/orders?status=CONFIRMED",
             },
             {
               label: "Draft",
-              value: String(quickAccess.purchase.draft),
+              value: quickAccess.purchase.draft,
               href: "/purchases/orders?status=DRAFT",
             },
           ]}
+          footnote="Totals across all time — each tile opens the list it counts. The period above drives the figures below."
         />
 
         <QuickAccessCard
           title="Budget Reports"
           action={{ label: "Report", href: "/reports/budget" }}
           tiles={[
-            { label: "Budgets", value: String(quickAccess.budget.count), href: "/budgets" },
+            { label: "Budgets", value: quickAccess.budget.count, href: "/budgets" },
             {
               label: "Committed",
-              value: quickAccess.budget.committed,
-              money: true,
+              value: quickAccess.budget.committedCount,
               href: "/reports/budget",
             },
             {
               label: "Achieved",
-              value: quickAccess.budget.achieved,
-              money: true,
+              value: quickAccess.budget.achievedCount,
               href: "/reports/budget",
             },
           ]}
+          footnote={
+            <>
+              Planned <Amount value={quickAccess.budget.planned} size="sm" /> · committed{" "}
+              <Amount value={quickAccess.budget.committed} size="sm" /> · achieved{" "}
+              <Amount value={quickAccess.budget.achieved} size="sm" />
+            </>
+          }
         />
       </div>
 
@@ -164,7 +171,23 @@ export default async function DashboardPage({
           label="Cash & bank"
           value={overview.cashAndBank}
           tone="primary"
-          hint={`Cash ${overview.cash} · Bank ${overview.bank}`}
+          hint={
+            <>
+              Cash <Amount value={overview.cash} size="sm" /> · Bank{" "}
+              {/*
+                No `signed`: that colours a negative red, which is unreadable on
+                this card's green. `Amount` renders the minus sign either way,
+                and "(overdrawn)" below carries the meaning.
+              */}
+              <Amount value={overview.bank} size="sm" />
+              {/*
+                A credit balance on a bank account is an overdraft -- money owed
+                to the bank rather than held there. It is a real position, so it
+                is named rather than hidden or shown as a bare minus sign.
+              */}
+              {Number(overview.bank) < 0 ? " (overdrawn)" : null}
+            </>
+          }
         />
         <StatCard
           label={overview.isProfit ? "Net profit" : "Net loss"}

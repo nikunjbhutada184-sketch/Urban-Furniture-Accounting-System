@@ -25,6 +25,7 @@ import {
   PAYMENT_SORT_FIELDS,
   listPayments,
 } from "@/modules/payments/payment-queries";
+import { can } from "@/server/auth/permissions";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Payments" };
@@ -36,7 +37,8 @@ export default async function PaymentsPage({
 }: {
   searchParams: Promise<RawSearchParams>;
 }) {
-  await requirePermissionOrRedirect("payment:view");
+  const actor = await requirePermissionOrRedirect("payment:view");
+  const canRegister = can(actor, "payment:post");
   const resolved = await searchParams;
 
   const params = parseListParams({
@@ -66,6 +68,7 @@ export default async function PaymentsPage({
       <PageHeader
         title="Payments"
         description="Money received from customers and paid to vendors. Every payment posts its own journal entry."
+        action={canRegister ? { label: "Register payment", href: "/payments/new" } : undefined}
       />
 
       <div className="grid gap-4 sm:grid-cols-3">

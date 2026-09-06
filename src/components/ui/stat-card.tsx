@@ -22,7 +22,12 @@ export function StatCard({
   label: string;
   /** Exact decimal string. */
   value: string;
-  hint?: string;
+  /**
+   * A node, not a string, so a hint can hold `<Amount>` components. As plain
+   * text the figures came out ungrouped -- "Cash 4212452.17" sitting under a
+   * headline reading "41,34,495.12".
+   */
+  hint?: React.ReactNode;
   delta?: number;
   href?: string;
   tone?: "default" | "primary";
@@ -33,9 +38,7 @@ export function StatCard({
     <div
       className={cn(
         "card-float rounded-xl border p-4 transition-colors",
-        tone === "primary"
-          ? "bg-primary text-primary-foreground border-transparent"
-          : "bg-card",
+        tone === "primary" ? "bg-primary text-primary-foreground border-transparent" : "bg-card",
         href && "hover:border-ring",
         className,
       )}
@@ -43,7 +46,7 @@ export function StatCard({
       <div className="flex items-start justify-between gap-3">
         <p
           className={cn(
-            "text-xs font-medium",
+            "min-w-0 text-xs font-medium",
             tone === "primary" ? "text-primary-foreground/80" : "text-muted-foreground",
           )}
         >
@@ -52,7 +55,7 @@ export function StatCard({
         {delta !== undefined ? <DeltaBadge value={delta} /> : null}
       </div>
 
-      <div className="mt-2">
+      <div className="mt-2 min-w-0">
         <Amount
           value={value}
           size="lg"
@@ -62,14 +65,14 @@ export function StatCard({
       </div>
 
       {hint ? (
-        <p
+        <div
           className={cn(
             "mt-1 text-xs",
             tone === "primary" ? "text-primary-foreground/75" : "text-muted-foreground",
           )}
         >
           {hint}
-        </p>
+        </div>
       ) : null}
     </div>
   );

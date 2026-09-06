@@ -76,13 +76,101 @@ export interface ReportPdfInput {
 
 type Doc = InstanceType<typeof PDFDocument>;
 
+// ---------------------------------------------------------------------------
+// Text safety
+// ---------------------------------------------------------------------------
+
+/**
+ * The characters the base-14 Helvetica faces can actually draw.
+ *
+ * pdfkit encodes standard fonts as WinAnsi, which is Latin-1 plus a specific
+ * block between 0x80 and 0x9F. A character outside it does not fail loudly --
+ * it draws as the wrong glyph. A true minus sign (U+2212) in a total line came
+ * out as a double quote: "Subtotal 416977.00 + Tax 39682.28 " Received".
+ */
+const WINANSI_HIGH = "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
+
+/** Typographic characters worth keeping as a readable equivalent. */
+const SUBSTITUTIONS: Record<string, string> = {
+  "−": "-", // minus sign
+  "–": "-", // en dash, safe but narrower than intended at small sizes
+  "₹": "Rs.", // rupee sign
+  " ": " ", // non-breaking space
+  "→": "->",
+  "≤": "<=",
+  "≥": ">=",
+};
+
+/**
+ * Makes a string drawable by a standard PDF font.
+ *
+ * Substitutes what has a sensible equivalent and replaces anything else
+ * outside WinAnsi with "?". Non-Latin scripts therefore do not survive -- a
+ * product named in Devanagari would need an embedded Unicode font, which is a
+ * deliberate trade for keeping these files small.
+ */
+export function pdfSafe(value: string): string {
+  let out = "";
+
+  for (const character of value) {
+    const substitute = SUBSTITUTIONS[character];
+    if (substitute !== undefined) {
+      out += substitute;
+      continue;
+    }
+
+    const code = character.codePointAt(0) ?? 0;
+    const drawable =
+      (code >= 0x20 && code <= 0x7e) ||
+      (code >= 0xa0 && code <= 0xff) ||
+      WINANSI_HIGH.includes(character);
+
+    out += drawable ? character : "?";
+  }
+
+  return out;
+}
+
+/** Applies {@link pdfSafe} to every string in a document, once, at the door. */
+function sanitise(input: ReportPdfInput): ReportPdfInput {
+  return {
+    ...input,
+    companyName: pdfSafe(input.companyName),
+    title: pdfSafe(input.title),
+    periodLabel: pdfSafe(input.periodLabel),
+    description: pdfSafe(input.description),
+    notice: input.notice ? { ...input.notice, text: pdfSafe(input.notice.text) } : undefined,
+    summary: input.summary.map((item) => ({
+      ...item,
+      label: pdfSafe(item.label),
+      value: pdfSafe(item.value),
+    })),
+    tables: input.tables.map((table) => ({
+      ...table,
+      title: pdfSafe(table.title),
+      emptyLabel: pdfSafe(table.emptyLabel),
+      columns: table.columns.map((column) => ({ ...column, label: pdfSafe(column.label) })),
+      rows: table.rows.map((row) => row.map(pdfSafe)),
+      extraRow: table.extraRow?.map(pdfSafe),
+      total: table.total
+        ? { label: pdfSafe(table.total.label), value: pdfSafe(table.total.value) }
+        : undefined,
+    })),
+    closing: input.closing
+      ? { label: pdfSafe(input.closing.label), value: pdfSafe(input.closing.value) }
+      : undefined,
+  };
+}
+
 /**
  * Renders a report to a PDF and resolves the finished bytes.
  *
  * `bufferPages` keeps every page in memory until `end()`, which is what makes
  * "Page 1 of 3" possible: the total is not known until the last row is drawn.
  */
-export async function renderReportPdf(input: ReportPdfInput): Promise<Buffer> {
+export async function renderReportPdf(raw: ReportPdfInput): Promise<Buffer> {
+  const input = sanitise(raw);
+
   const doc = new PDFDocument({
     size: "A4",
     margin: PAGE_MARGIN,

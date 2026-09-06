@@ -13,10 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type RawSearchParams } from "@/lib/list-params";
-import {
-  ReconciliationBanner,
-  ReportShell,
-} from "@/modules/reporting/components/report-shell";
+import { ReportExportLinks } from "@/modules/reporting/components/report-export";
+import { ReconciliationBanner, ReportShell } from "@/modules/reporting/components/report-shell";
 import { getTrialBalanceReport, parsePeriod } from "@/modules/reporting/report-service";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 
@@ -38,6 +36,7 @@ export default async function TrialBalancePage({
       title="Trial Balance"
       description="Debit and credit movement per account. The two columns must agree."
       period={period}
+      actions={<ReportExportLinks period={period} csvReport="trial-balance" />}
     >
       <ReconciliationBanner
         isBalanced={report.isBalanced}

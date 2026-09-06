@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import Link from "next/link";
 import { EmptyState } from "@/components/data-table/empty-state";
+import { ListPagination } from "@/components/data-table/list-pagination";
 import { Amount } from "@/components/ui/amount";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
@@ -12,8 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { type RawSearchParams } from "@/lib/list-params";
+import { type RawSearchParams, buildPageMeta, parseListParams } from "@/lib/list-params";
 import { BudgetPie } from "@/modules/budgets/components/budget-pie";
+import { ReportExportLinks } from "@/modules/reporting/components/report-export";
 import { ReportShell } from "@/modules/reporting/components/report-shell";
 import { getBudgetReport, parsePeriod } from "@/modules/reporting/report-service";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
@@ -49,9 +51,21 @@ export default async function BudgetReportPage({
   const resolved = await searchParams;
   const period = parsePeriod(resolved);
 
-  const rows = await getBudgetReport(period);
+  // Every budget line is summarised here AND drawn as a donut, so the totals
+  // are computed over the whole report while only one page is rendered.
+  // The CSV export is deliberately unpaged — that is what it is for.
+  const allRows = await getBudgetReport(period);
 
-  const totals = rows.reduce(
+  const params = parseListParams({
+    searchParams: resolved,
+    allowedSorts: ["budget"] as const,
+    defaultSort: "budget",
+  });
+
+  const meta = buildPageMeta(params, allRows.length);
+  const rows = allRows.slice((meta.page - 1) * meta.perPage, meta.page * meta.perPage);
+
+  const totals = allRows.reduce(
     (accumulator, row) => ({
       planned: accumulator.planned + Number(row.planned),
       committed: accumulator.committed + Number(row.committed),
@@ -68,9 +82,12 @@ export default async function BudgetReportPage({
       description="Planned against committed and achieved, for every budget overlapping the period."
       period={period}
       actions={
-        <Link href="/budgets" className="text-muted-foreground text-sm hover:underline">
-          Manage budgets
-        </Link>
+        <>
+          <ReportExportLinks period={period} csvReport="budget" />
+          <Link href="/budgets" className="text-muted-foreground text-sm hover:underline">
+            Manage budgets
+          </Link>
+        </>
       }
     >
       <div className="grid gap-4 sm:grid-cols-4">
@@ -93,7 +110,7 @@ export default async function BudgetReportPage({
       </div>
 
       <div className="card-float rounded-xl border">
-        {rows.length === 0 ? (
+        {allRows.length === 0 ? (
           <EmptyState
             title="No budgets in this period"
             description="Create a budget whose period overlaps this range, then confirm it to start tracking."
@@ -160,6 +177,15 @@ export default async function BudgetReportPage({
             </TableBody>
           </Table>
         )}
+
+        {allRows.length > 0 ? (
+          <ListPagination
+            meta={meta}
+            pathname="/reports/budget"
+            searchParams={resolved}
+            itemLabel="budget lines"
+          />
+        ) : null}
       </div>
     </ReportShell>
   );

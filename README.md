@@ -47,6 +47,23 @@ New accounts are created two ways: an administrator at **Users → Create User**
 (any role), or self-service at **/signup**, which only ever creates a portal
 (invoicing) user.
 
+### Demo data
+
+To fill every section with a few hundred rows for a walkthrough:
+
+```bash
+npm run db:demo
+```
+
+Roughly 200 contacts, products, accounts, journals, analytic accounts, users,
+orders, invoices, bills, payments, journal entries and budgets, dated inside
+FY 2026-27. Demo logins are `demo0000`… with the same development password.
+
+Everything is generated **through the application's own services**, so the
+demo database obeys the same invariants as a real one — the trial balance
+balances and the reports reconcile. Add `-- --force` to append another batch,
+or `npm run db:reset && npm run db:seed` to start clean.
+
 ## Scripts
 
 | Command                           | Description                                              |

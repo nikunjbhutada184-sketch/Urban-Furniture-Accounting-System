@@ -13,16 +13,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type RawSearchParams } from "@/lib/list-params";
-import { ReportPdfLink } from "@/modules/reporting/components/report-pdf-link";
-import {
-  ReconciliationBanner,
-  ReportShell,
-} from "@/modules/reporting/components/report-shell";
-import {
-  type ReportLine,
-  getBalanceSheet,
-  parsePeriod,
-} from "@/modules/reporting/report-service";
+import { ReportExportLinks } from "@/modules/reporting/components/report-export";
+import { ReconciliationBanner, ReportShell } from "@/modules/reporting/components/report-shell";
+import { type ReportLine, getBalanceSheet, parsePeriod } from "@/modules/reporting/report-service";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Balance Sheet" };
@@ -126,7 +119,13 @@ export default async function BalanceSheetPage({
       title="Balance Sheet"
       description={`Assets, liabilities and capital as at ${period.to.toISOString().slice(0, 10)}.`}
       period={period}
-      actions={<ReportPdfLink href="/reports/balance-sheet/pdf" period={period} />}
+      actions={
+        <ReportExportLinks
+          period={period}
+          csvReport="balance-sheet"
+          pdfHref="/reports/balance-sheet/pdf"
+        />
+      }
     >
       <ReconciliationBanner
         isBalanced={report.isBalanced}
@@ -141,7 +140,7 @@ export default async function BalanceSheetPage({
         <StatCard
           label="Total capital"
           value={report.totalCapital}
-          hint={`Includes ${report.netProfit} profit for the period`}
+          hint={`Includes ${report.retainedEarnings} retained earnings`}
         />
       </div>
 
@@ -168,7 +167,7 @@ export default async function BalanceSheetPage({
             lines={report.capital}
             total={report.totalCapital}
             totalLabel="Total capital"
-            extra={{ label: "Profit for the period", amount: report.netProfit }}
+            extra={{ label: "Retained earnings", amount: report.retainedEarnings }}
             period={period}
           />
         </div>

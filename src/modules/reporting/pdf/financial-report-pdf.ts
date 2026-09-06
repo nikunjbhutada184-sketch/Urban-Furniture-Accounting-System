@@ -164,7 +164,9 @@ export function balanceSheetDocument(
         title: "Capital",
         columns: COLUMNS,
         rows: toRows(report.capital),
-        extraRow: ["", "Profit for the period", report.netProfit],
+        // Retained earnings, not the period's profit: this is the figure that
+        // makes assets equal liabilities plus capital.
+        extraRow: ["", "Retained earnings", report.retainedEarnings],
         total: { label: "Total capital", value: report.totalCapital },
         emptyLabel: "No capital balances as at this date.",
       },

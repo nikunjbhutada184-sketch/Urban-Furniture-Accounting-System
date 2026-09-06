@@ -19,6 +19,7 @@ import {
   registerBillPaymentAction,
 } from "@/modules/purchases/actions";
 import { DocumentActionButton } from "@/modules/shared/components/document-action-button";
+import { DocumentPdfLink } from "@/modules/shared/components/document-pdf-link";
 import { PaymentDialog } from "@/modules/shared/components/payment-dialog";
 import { BillStatusBadge } from "@/modules/purchases/components/status-badge";
 import { getVendorBill } from "@/modules/purchases/vendor-bill-service";
@@ -51,6 +52,7 @@ export default async function VendorBillPage({ params }: { params: Promise<{ id:
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <PageHeader title={bill.number} description={`Vendor: ${bill.vendor.name}`}>
+        <DocumentPdfLink href={`/purchases/bills/${bill.id}/pdf`} />
         <BillStatusBadge status={bill.status} />
       </PageHeader>
 

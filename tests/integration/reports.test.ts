@@ -74,6 +74,29 @@ describeWithDb("reporting engine (database)", () => {
     expect(report.totalAssets).toBe(report.totalLiabilitiesAndCapital);
   });
 
+  it("balance sheet: balances for a period that starts AFTER trading began", async () => {
+    // The regression that prompted this test: capital was folded with only the
+    // selected period's profit, so everything traded before `from` went
+    // missing and the equation failed by exactly that amount. It stayed hidden
+    // while every fixture happened to start on the first day of its period.
+    const late = parsePeriod({ from: "2200-01-01", to: "2200-12-31" });
+    const lateSheet = await getBalanceSheet(late, prisma);
+
+    // Nothing trades in 2200, so the period's own profit is zero -- but the
+    // sheet must still balance on the retained earnings carried into it.
+    expect(Number(lateSheet.netProfit)).toBe(0);
+    expect(lateSheet.isBalanced).toBe(true);
+  });
+
+  it("balance sheet: retained earnings is cumulative, not the period's profit", async () => {
+    const wide = parsePeriod({ from: "1900-01-01", to: "2200-12-31" });
+    const wideSheet = await getBalanceSheet(wide, prisma);
+
+    // Over a range covering everything, the two coincide.
+    expect(Number(wideSheet.retainedEarnings)).toBeCloseTo(Number(wideSheet.netProfit), 2);
+    expect(wideSheet.isBalanced).toBe(true);
+  });
+
   it("balance sheet: capital includes the period's profit", async () => {
     const [balanceSheet, profitAndLoss] = await Promise.all([
       getBalanceSheet(period, prisma),
@@ -124,9 +147,7 @@ describeWithDb("reporting engine (database)", () => {
   it("customer outstanding: rows sum to the reported total", async () => {
     const report = await getCustomerOutstandingReport(period, prisma);
 
-    const sum = report.rows
-      .reduce((total, row) => total + Number(row.outstanding), 0)
-      .toFixed(2);
+    const sum = report.rows.reduce((total, row) => total + Number(row.outstanding), 0).toFixed(2);
     expect(sum).toBe(report.totalOutstanding);
 
     // Outstanding is always total less paid.
@@ -140,9 +161,7 @@ describeWithDb("reporting engine (database)", () => {
   it("vendor outstanding: rows sum to the reported total", async () => {
     const report = await getVendorOutstandingReport(period, prisma);
 
-    const sum = report.rows
-      .reduce((total, row) => total + Number(row.outstanding), 0)
-      .toFixed(2);
+    const sum = report.rows.reduce((total, row) => total + Number(row.outstanding), 0).toFixed(2);
     expect(sum).toBe(report.totalOutstanding);
   });
 

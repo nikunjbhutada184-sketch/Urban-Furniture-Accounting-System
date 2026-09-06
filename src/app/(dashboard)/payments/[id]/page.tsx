@@ -56,9 +56,7 @@ export default async function PaymentPage({ params }: { params: Promise<{ id: st
                 {item.label}
               </CardTitle>
             </CardHeader>
-            <CardContent className="tabular truncate text-sm font-medium">
-              {item.value}
-            </CardContent>
+            <CardContent className="tabular truncate text-sm font-medium">{item.value}</CardContent>
           </Card>
         ))}
       </div>

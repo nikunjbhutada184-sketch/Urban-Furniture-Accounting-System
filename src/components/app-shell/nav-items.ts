@@ -116,6 +116,13 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: "Scale3d",
         permission: "report:view",
       },
+      {
+        label: "Partner Ledger",
+        href: "/reports/partner-ledger",
+        icon: "BookUser",
+        permission: "report:view",
+      },
+      { label: "Ageing", href: "/reports/ageing", icon: "Hourglass", permission: "report:view" },
     ],
   },
   {
@@ -173,19 +180,19 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/settings",
         icon: "Settings",
         permission: "settings:manage",
-        comingSoon: true,
       },
+      { label: "Audit Log", href: "/settings/audit", icon: "ScrollText", permission: "audit:view" },
     ],
   },
 ];
 
 export const PORTAL_NAV: NavItem[] = [
-  { label: "My Documents", href: "/portal", icon: "FileText", permission: "portal:view-own" },
+  { label: "Overview", href: "/portal", icon: "LayoutDashboard", permission: "portal:view-own" },
   {
-    label: "Payments",
-    href: "/portal/payments",
-    icon: "Wallet",
-    permission: "portal:pay-own",
-    comingSoon: true,
+    label: "My Invoices",
+    href: "/portal/invoices",
+    icon: "FileText",
+    permission: "portal:view-own",
   },
+  { label: "My Payments", href: "/portal/payments", icon: "Wallet", permission: "portal:view-own" },
 ];

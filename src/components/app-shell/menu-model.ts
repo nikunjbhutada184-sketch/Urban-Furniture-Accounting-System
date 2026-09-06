@@ -59,6 +59,8 @@ export const APP_MENU: MenuColumn[] = [
       { label: "Balancesheet", href: "/reports/balance-sheet", permission: "report:view" },
       { label: "Profit and Loss", href: "/reports/profit-and-loss", permission: "report:view" },
       { label: "Budget Report", href: "/reports/budget", permission: "budget:view" },
+      { label: "Partner Ledger", href: "/reports/partner-ledger", permission: "report:view" },
+      { label: "Ageing", href: "/reports/ageing", permission: "report:view" },
     ],
   },
 ];

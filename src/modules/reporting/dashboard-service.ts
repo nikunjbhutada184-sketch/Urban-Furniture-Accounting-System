@@ -1,6 +1,6 @@
 import { AccountKind, EntryStatus, InvoiceStatus } from "@prisma/client";
 import { type DbClient, prisma } from "@/server/db/prisma";
-import { ZERO, add, subtract, toAmountString, toMoney } from "@/server/money";
+import { ZERO, add, isPositive, subtract, toAmountString, toMoney } from "@/server/money";
 import { type ReportPeriod, getBalanceSheet, getProfitAndLoss } from "./report-service";
 
 /**
@@ -63,8 +63,8 @@ export async function getDashboardOverview(
     totalExpenses: profitAndLoss.totalExpenses,
     netProfit: profitAndLoss.netProfit,
     isProfit: profitAndLoss.isProfit,
+    receivables,
     // Payables are credit-natured; show what is owed as a positive figure.
-    receivables: profitAndLoss ? receivables : receivables,
     payables: toAmountString(toMoney(payables).negated()),
     cash,
     bank,
@@ -316,8 +316,14 @@ export interface DocumentCounts {
 }
 
 export interface BudgetSummary {
-  /** Budgets whose period overlaps the report period and are not cancelled. */
+  /** Every budget, matching the list the tile opens. */
   count: number;
+  /** Budgets with something committed against them. */
+  committedCount: number;
+  /** Budgets with something achieved against them. */
+  achievedCount: number;
+  /** Exact totals, for the line beneath the tiles. */
+  planned: string;
   committed: string;
   achieved: string;
 }
@@ -331,61 +337,81 @@ export interface QuickAccessSummary {
 /**
  * The counts behind the dashboard's quick-access cards.
  *
+ * These are navigational shortcuts, not period figures: each tile shows the
+ * same number as the list it opens, and the lists have no date filter. Scoping
+ * the counts to the report period made a tile read 126 beside a list of 248.
+ * The period picker governs the financial cards below, where it belongs.
+ *
  * Every number is a `count` or a sum over real rows -- there is no illustrative
  * data here, so an empty database shows zeros rather than a plausible-looking
  * fiction.
  */
 export async function getQuickAccessSummary(
-  period: ReportPeriod,
   client: DbClient = prisma,
 ): Promise<QuickAccessSummary> {
-  const overlapsPeriod = { orderDate: { gte: period.from, lte: period.to } };
-
   const [salesGroups, purchaseGroups, budgets] = await Promise.all([
-    client.salesOrder.groupBy({
-      by: ["status"],
-      where: overlapsPeriod,
-      _count: { _all: true },
-    }),
-    client.purchaseOrder.groupBy({
-      by: ["status"],
-      where: overlapsPeriod,
-      _count: { _all: true },
-    }),
+    client.salesOrder.groupBy({ by: ["status"], _count: { _all: true } }),
+    client.purchaseOrder.groupBy({ by: ["status"], _count: { _all: true } }),
     client.budget.findMany({
-      where: {
-        status: { not: "CANCELLED" },
-        periodStart: { lte: period.to },
-        periodEnd: { gte: period.from },
+      select: {
+        lines: {
+          select: { plannedAmount: true, committedAmount: true, achievedAmount: true },
+        },
       },
-      select: { lines: { select: { committedAmount: true, achievedAmount: true } } },
     }),
   ]);
 
   /**
-   * "All" deliberately excludes cancelled orders: a cancelled document is not
-   * work in progress, and counting it would make the tile disagree with the
-   * list it links to.
+   * Each tile must equal what its link shows.
+   *
+   * That rule decides the shape: "All" counts every order because it opens the
+   * unfiltered list, and the other two count a single status each because that
+   * is what they filter on. They therefore do NOT sum to "All" -- invoiced,
+   * billed and cancelled orders sit outside both.
+   *
+   * Counting "confirmed, or since invoiced" reads more naturally and was tried
+   * first, but it lies: the list behind the tile filters on CONFIRMED alone and
+   * came back empty beside a tile showing 101.
    */
   function summarise(groups: { status: string; _count: { _all: number } }[]): DocumentCounts {
     const countFor = (status: string) =>
       groups.find((group) => group.status === status)?._count._all ?? 0;
 
-    const draft = countFor("DRAFT");
-    const confirmed = countFor("CONFIRMED");
-    const completed = countFor("INVOICED") + countFor("BILLED");
+    const all = groups.reduce((total, group) => total + group._count._all, 0);
 
-    return { all: draft + confirmed + completed, confirmed, draft };
+    return { all, confirmed: countFor("CONFIRMED"), draft: countFor("DRAFT") };
   }
 
+  let planned = ZERO;
   let committed = ZERO;
   let achieved = ZERO;
+  let committedCount = 0;
+  let achievedCount = 0;
 
   for (const budget of budgets) {
+    let budgetPlanned = ZERO;
+    let budgetCommitted = ZERO;
+    let budgetAchieved = ZERO;
+
     for (const line of budget.lines) {
-      committed = add(committed, line.committedAmount);
-      achieved = add(achieved, line.achievedAmount);
+      budgetPlanned = add(budgetPlanned, line.plannedAmount);
+      budgetCommitted = add(budgetCommitted, line.committedAmount);
+      budgetAchieved = add(budgetAchieved, line.achievedAmount);
     }
+
+    planned = add(planned, budgetPlanned);
+    committed = add(committed, budgetCommitted);
+    achieved = add(achieved, budgetAchieved);
+
+    // Both tiles count budgets with *any* activity, so each one agrees with the
+    // total printed beneath it.
+    //
+    // "Achieved" previously meant "met its plan in full", which read as a flat
+    // 0 sitting directly above a footnote reporting 16,38,610.00 achieved. Two
+    // true statements that look like a contradiction are worse than one plain
+    // one.
+    if (isPositive(budgetCommitted)) committedCount += 1;
+    if (isPositive(budgetAchieved)) achievedCount += 1;
   }
 
   return {
@@ -393,6 +419,9 @@ export async function getQuickAccessSummary(
     purchase: summarise(purchaseGroups),
     budget: {
       count: budgets.length,
+      committedCount,
+      achievedCount,
+      planned: toAmountString(planned),
       committed: toAmountString(committed),
       achieved: toAmountString(achieved),
     },

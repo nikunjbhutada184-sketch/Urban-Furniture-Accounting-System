@@ -14,13 +14,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type RawSearchParams } from "@/lib/list-params";
-import { ReportPdfLink } from "@/modules/reporting/components/report-pdf-link";
+import { ReportExportLinks } from "@/modules/reporting/components/report-export";
 import { ReportShell } from "@/modules/reporting/components/report-shell";
-import {
-  type ReportLine,
-  getProfitAndLoss,
-  parsePeriod,
-} from "@/modules/reporting/report-service";
+import { type ReportLine, getProfitAndLoss, parsePeriod } from "@/modules/reporting/report-service";
 import { requirePermissionOrRedirect } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Profit & Loss" };
@@ -115,7 +111,13 @@ export default async function ProfitAndLossPage({
       title="Profit & Loss"
       description={`Income less expenses from ${period.from.toISOString().slice(0, 10)} to ${period.to.toISOString().slice(0, 10)}.`}
       period={period}
-      actions={<ReportPdfLink href="/reports/profit-and-loss/pdf" period={period} />}
+      actions={
+        <ReportExportLinks
+          period={period}
+          csvReport="profit-and-loss"
+          pdfHref="/reports/profit-and-loss/pdf"
+        />
+      }
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Total income" value={report.totalIncome} />
