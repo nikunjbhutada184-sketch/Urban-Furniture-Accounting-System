@@ -123,6 +123,6 @@ export async function receiveInvoicePaymentAction(
     formData,
     handler: (tx, input, actor) => receiveCustomerInvoicePayment(tx, input, { userId: actor.id }),
     successMessage: "Payment received and posted.",
-    revalidate: ["/sales/invoices", `/sales/invoices/${invoiceId}`, "/sales/outstanding"],
+    revalidate: ["/sales/invoices", `/sales/invoices/${invoiceId}`, "/reports/customer-outstanding"],
   });
 }

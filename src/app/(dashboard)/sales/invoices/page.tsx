@@ -70,7 +70,7 @@ export default async function CustomerInvoicesPage({
       <PageHeader
         title="Customer Invoices"
         description="What customers owe Urban Furniture. Posting an invoice writes the ledger."
-        action={{ label: "Customer outstanding", href: "/sales/outstanding" }}
+        action={{ label: "Customer outstanding", href: "/reports/customer-outstanding" }}
       />
 
       <ListToolbar
